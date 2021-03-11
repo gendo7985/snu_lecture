@@ -1,0 +1,55 @@
+---
+title: 
+  - 회귀분석 및 실습 Homework 2
+author: 
+  - 서울대학교 통계학과 2017-11362 박건도
+date: "`r format(Sys.time(), '%Y년 %m월 %d일')`"
+header-includes:
+  - \usepackage[hangul]{kotex}
+output:
+  pdf_document:
+    fig_caption: yes
+    latex_engine: xelatex
+    df_print: kable
+mainfont: NanumBarunGothic
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# [Problem 1]
+
+```{r problem1}
+x = seq(0, 15, by=0.01)
+y = dchisq(x, df=4)
+plot(x, y, type = 'l')
+
+z_0.95 = qchisq(0.95, df=4)
+z = seq(z_0.95, 15, by=0.01)
+f.z = dchisq(z, df=4)
+
+z = c(z_0.95, z, 15)
+f.z = c(0, f.z, 0)
+polygon(z, f.z, col = 'blue')
+```
+
+# [Problem 2]
+
+## (a)
+```{r problem2}
+set.seed(0)
+x = runif(50, min=5, max=25)
+e = rnorm(50, mean=0, sd=5)
+y = 6 - 2*x + e
+plot(x, y)
+
+beta1 = sum((x - mean(x)) * y) / sum((x - mean(x))^2)
+beta0 = mean(y - beta1 * mean(x))
+abline(a = beta0, b = beta1, col='blue')
+text(17, -10, labels=gettextf("y=%.3f+%.3f", beta1, beta0))
+```
+
+## (b)
+$\hat{\beta}_0^{LSE}=8.403642$ \newline
+$\hat{\beta}_1^{LSE}=-2.171631$
