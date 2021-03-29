@@ -28,9 +28,9 @@ def problem_A():
         # if n >  len(s), min = len(s), print(s)
         print(s[: min(n, len(s))])
 
-    # if n % 2 == 0, n is even, s[0, 2, 4, ...]
-    # if n % 2 == 1. n is odd,  s[1, 3, 5, ...]
-    print(s[(n % 2) :: 2])
+    # if n % 2 == 0, n is even, s[1, 3, 5, ...]
+    # if n % 2 == 1. n is odd,  s[0, 2, 4, ...]
+    print(s[1 - (n % 2) :: 2])
 
 
 # problem B
