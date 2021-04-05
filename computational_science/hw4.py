@@ -1,7 +1,7 @@
 #############################
 #                           #
 #     계산과학이론 및 실습1    #
-#            HW 2           #
+#            HW 4           #
 #      2017-11362 박건도     #
 #                           #
 #############################
@@ -12,6 +12,7 @@ def quadratic(a, b, c, x0, x1, tol):
     assert a != 0, "'a' must be nonzero in quadratic form."
     assert f(x0) != f(x1), "Invalid initial values for secant method."
 
+    # quadratic formula
     R = -b / (2 * a)
     if b ** 2 == 4 * a * c:
         print("multiple root:", R)
