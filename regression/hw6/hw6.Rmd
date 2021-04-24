@@ -1,0 +1,179 @@
+---
+title: 
+  - 회귀분석 및 실습 Homework 6
+author: 
+  - 서울대학교 통계학과 2017-11362 박건도
+date: "`r format(Sys.time(), '%Y년 %m월 %d일')`"
+header-includes:
+  - \usepackage[hangul]{kotex}
+output:
+  pdf_document:
+    fig_caption: yes
+    latex_engine: xelatex
+    df_print: kable
+mainfont: NanumBarunGothic
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libraries, include=FALSE}
+library(nls2)
+library(dplyr)
+library(ggplot2)
+```
+
+# Get COVID-19 data
+
+```{r data_processing}
+covid <- read.csv('./global_confirmed_cases_210420.csv')
+str(covid)
+ISR <- covid %>%
+  filter(CountryCode == 'ISR') %>%
+  select(Days, Cases, Difference)
+str(ISR)
+```
+우리의 회귀분석에 사용될 나라는 이스라엘이고, 모형에 있어 시간과 확진자 수가 인수로 주어지기 때문에, 나머지 불필요한 데이터들을 제외한 데이터 프레임 `ISR`을 만들었다.
+
+# Logistic Model
+
+우선, 위에서 얻은 데이터로 로지스틱 모델에 대해 비선형 회귀분석을 실시해보자. 로지스틱 모델의 식은 다음과 같다.
+
+$$
+y = \frac{A}{1 + e^{\beta_0-\beta_1x}}
+$$
+여기서 $y$는 Cases가 되고, $x$는 Days$가 된다. 위 식과 `nls2` 함수를 이용하여 brute-force 방식으로 대략적 해를 구한 뒤, Gauss-Newton 알고리즘을 사용하여 국소해를 찾을 것이다.
+
+```{r nls_logit}
+form_logit <- Cases ~ A / (1 + exp(beta0 - beta1 * Days))
+grid_logit <- data.frame(A = c(0, max(ISR$Cases)), beta0 = c(0, 100), beta1 = c(0, 1))
+rough_fit_logit <- nls2(form_logit, data = ISR, start = grid_logit, algorithm = "brute-force")
+summary(rough_fit_logit)
+gn_fit_logit <- nls2(form_logit, data = ISR, start = rough_fit_logit)
+summary(gn_fit_logit)
+coef(gn_fit_logit) # coefficients
+deviance(gn_fit_logit) # SSR
+```
+
+fitting의 결과를 그림으로 표현하면 아래와 같다.
+
+```{r logit_graph, fig.show = "hold", out.width="45%", fig.align="center", echo=FALSE}
+ISR <- ISR %>% mutate(y_logit = predict(gn_fit_logit, Days))
+
+logit_graph <- ggplot(data = ISR, aes(x = Days, y = Cases)) +
+  geom_point(color = 'blue', shape = 1, size = 1,) +
+  theme_bw() +
+  geom_line(data = ISR, aes(x = Days, y = y_logit), color = 'red') +
+  labs(title = paste0("COVID-19 Cases"),
+       subtitle = paste("Israel", "/", "Cumulated"),
+       x = 'Days', y = 'Number of Cases') +
+  scale_y_continuous(labels = scales::label_scientific()) +
+  theme(plot.title = element_text(size = 25, face = "bold", colour = "black", hjust = 0.5),
+      plot.subtitle = element_text(size = 16, face = "italic", color = "maroon", hjust = 0.5),
+      axis.text = element_text(size = 12),
+      axis.title = element_text(size = 16, face = "bold"))
+
+logit_graph_log <- ggplot(data = ISR, aes(x = Days, y = log10(Cases))) +
+  geom_point(color = 'blue', shape = 1, size = 1) +
+  theme_bw() +
+  geom_line(data = ISR, aes(x = Days, y = log10(y_logit)), color = 'red') +
+  labs(title = paste0("COVID-19 Cases (log10)"),
+       subtitle = paste("Israel", "/", "Cumulated"),
+       x = 'Days', y = 'Number of Cases (log10)') +
+  theme(plot.title = element_text(size = 25, face = "bold", colour = "black", hjust = 0.5),
+      plot.subtitle = element_text(size = 16, face = "italic", color = "maroon", hjust = 0.5),
+      axis.text = element_text(size = 12),
+      axis.title = element_text(size = 16, face = "bold"))
+logit_graph; logit_graph_log
+```
+
+위 그림에서 푸른 점은 실제 데이터를 나타내고, 빨간 선은 로지스틱 모델로 fitting된 값을 의미한다. 오른쪽의 그림은 왼쪽의 그림에서 y축을 log scale로 바꾼 것이다.
+
+# Bertalanffy Model
+베르탈란피 모델은 아래와 같은 식으로 회귀분석을 하면 된다.
+
+$$
+y = A \left( 1 - e^{\beta_0 -\beta_1 x } \right)
+$$
+
+```{r nls_bert, error=TRUE}
+form_bert <- Cases ~ A * (1 - exp(beta0 - beta1 * Days))
+grid_bert <- data.frame(A = c(0, max(ISR$Cases)), beta0 = c(0, 1), beta1 = c(0, 0.1))
+rough_fit_bert <- nls2(form_bert, data = ISR, start = grid_bert, algorithm = "brute-force")
+summary(rough_fit_bert)
+gn_fit_bert <- nls2(form_bert, data = ISR, start = rough_fit_bert) # Error
+coef(rough_fit_logit) # coefficients
+deviance(rough_fit_logit) # SSR
+```
+
+```{r bert_graph, fig.show = "hold", out.width="45%", fig.align="center", echo=FALSE}
+ISR <- ISR %>% mutate(y_bert = predict(rough_fit_bert, Days))
+
+bert_graph <- ggplot(data = ISR, aes(x = Days, y = Cases)) +
+  geom_point(color = 'blue', shape = 1, size = 1,) +
+  theme_bw() +
+  geom_line(data = ISR, aes(x = Days, y = y_bert), color = 'red') +
+  labs(title = paste0("COVID-19 Cases"),
+       subtitle = paste("Israel", "/", "Cumulated"),
+       x = 'Days', y = 'Number of Cases') +
+  scale_y_continuous(labels = scales::label_scientific()) +
+  theme(plot.title = element_text(size = 25, face = "bold", color = "black", hjust = 0.5),
+      plot.subtitle = element_text(size = 16, face = "italic", color = "maroon", hjust = 0.5),
+      axis.text = element_text(size = 12),
+      axis.title = element_text(size = 16, face = "bold"))
+
+bert_graph
+```
+
+베르탈란피 모델을 가지고 fitting을 했을 때, 확진자 수를 전혀 예측하지 못하고 있다. 이는 베르탈란피 모델의 개형과 확진자 수의 개형이 완전히 달라서 생길 수 밖에 없다고 추측한다. 총 확진자 수의 증가량이 점점 증가하는 모습을 보이고 있지만, 베르탈란피 모델은 인구의 증가량은 최대 인구와 현재 인구의 차이에 비례하므로, 전혀 다른 결과를 나타냄을 알 수 있다.
+
+# Gompertz Model
+
+곰파츠 모델은 다음과 같다.
+
+$$
+y = A e^{ -e^{\beta_0 - \beta_1 x}} \\
+$$
+
+```{r nls_gomp}
+form_gomp <- Cases ~ A * exp(-exp(beta0 - beta1 * Days/10))
+grid_gomp <- data.frame(A = c(0, max(ISR$Cases)), beta0 = c(0,1), beta1 = c(0, 0.5))
+rough_fit_gomp <- nls2(form_gomp, data = ISR, start = grid_gomp, algorithm = "brute-force")
+summary(rough_fit_gomp)
+gn_fit_gomp <- nls2(form_gomp, data = ISR, start = rough_fit_gomp)
+summary(gn_fit_gomp)
+coef(gn_fit_gomp) # coefficients
+deviance(gn_fit_gomp) # SSR
+```
+
+fitting의 결과를 그림으로 표현하면 아래와 같다.
+
+```{r gomp_graph, fig.show = "hold", out.width="45%", fig.align="center", echo=FALSE}
+ISR <- ISR %>% mutate(y_gomp = predict(gn_fit_gomp, Days))
+
+gomp_graph <- ggplot(data = ISR, aes(x = Days, y = Cases)) +
+  geom_point(color = 'blue', shape = 1, size = 1,) +
+  theme_bw() +
+  geom_line(data = ISR, aes(x = Days, y = y_gomp), color = 'red') +
+  labs(title = paste0("COVID-19 Cases"),
+       subtitle = paste("Israel", "/", "Cumulated"),
+       x = 'Days', y = 'Number of Cases') +
+  scale_y_continuous(labels = scales::label_scientific()) +
+  theme(plot.title = element_text(size = 25, face = "bold", colour = "black", hjust = 0.5),
+      plot.subtitle = element_text(size = 16, face = "italic", color = "maroon", hjust = 0.5),
+      axis.text = element_text(size = 12),
+      axis.title = element_text(size = 16, face = "bold"))
+gomp_graph_log <- ggplot(data = ISR, aes(x = Days, y = log10(Cases))) +
+  geom_point(color = 'blue', shape = 1, size = 1) +
+  theme_bw() +
+  geom_line(data = ISR, aes(x = Days, y = log10(y_gomp)), color = 'red') +
+  labs(title = paste0("COVID-19 Cases (log10)"),
+       subtitle = paste("Israel", "/", "Cumulated"),
+       x = 'Days', y = 'Number of Cases (log10)') +
+  theme(plot.title = element_text(size = 25, face = "bold", colour = "black", hjust = 0.5),
+      plot.subtitle = element_text(size = 16, face = "italic", color = "maroon", hjust = 0.5),
+      axis.text = element_text(size = 12),
+      axis.title = element_text(size = 16, face = "bold"))
+gomp_graph; gomp_graph_log
+```
