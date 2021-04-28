@@ -15,13 +15,23 @@ mainfont: NanumBarunGothic
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, commet = NA)
 ```
 
 ```{r libraries, include=FALSE}
 library(nls2)
 library(dplyr)
+library(tidyr)
 library(ggplot2)
+```
+
+```{r MSE_function, include=FALSE}
+getMSE <- function(y, yhat){
+  sum((y - yhat)^2) / length(y)
+}
+getRsq <- function(y, yhat){
+  1 - sum((y - yhat)^2) / sum((y - mean(y))^2)
+}
 ```
 
 # Get COVID-19 data
@@ -43,7 +53,7 @@ str(ISR)
 $$
 y = \frac{A}{1 + e^{\beta_0-\beta_1x}}
 $$
-여기서 $y$는 Cases가 되고, $x$는 Days$가 된다. 위 식과 `nls2` 함수를 이용하여 brute-force 방식으로 대략적 해를 구한 뒤, Gauss-Newton 알고리즘을 사용하여 국소해를 찾을 것이다.
+여기서 $y$는 `Cases`가 되고, $x$는 `Days`가 된다. 위 식과 `nls2` 함수를 이용하여 brute-force 방식으로 대략적 해를 구한 뒤, Gauss-Newton 알고리즘을 사용하여 국소해를 찾을 것이다.
 
 ```{r nls_logit}
 form_logit <- Cases ~ A / (1 + exp(beta0 - beta1 * Days))
@@ -53,7 +63,8 @@ summary(rough_fit_logit)
 gn_fit_logit <- nls2(form_logit, data = ISR, start = rough_fit_logit)
 summary(gn_fit_logit)
 coef(gn_fit_logit) # coefficients
-deviance(gn_fit_logit) # SSR
+deviance(gn_fit_logit) # SSE
+getMSE(ISR$Cases, predict(gn_fit_logit, ISR$Cases)) # MSE
 ```
 
 fitting의 결과를 그림으로 표현하면 아래와 같다.
@@ -90,26 +101,28 @@ logit_graph; logit_graph_log
 
 위 그림에서 푸른 점은 실제 데이터를 나타내고, 빨간 선은 로지스틱 모델로 fitting된 값을 의미한다. 오른쪽의 그림은 왼쪽의 그림에서 y축을 log scale로 바꾼 것이다.
 
+
 # Bertalanffy Model
-베르탈란피 모델은 아래와 같은 식으로 회귀분석을 하면 된다.
+버탈란피 모델은 아래와 같은 식으로 회귀분석을 하면 된다. 그런데 `Days`가 0일때 확진자 수가 0이 되도록 데이터를 조정했으므로, 다음과 같이 $y(0) = 0$을 위한 $x$에 대한 조정 항 $x_0$는 없어도 무방하다.
 
 $$
-y = A \left( 1 - e^{\beta_0 -\beta_1 x } \right)
+y = A \left( 1 - e^{-\beta_1 x } \right) ^{\beta_0}
 $$
 
 ```{r nls_bert, error=TRUE}
-form_bert <- Cases ~ A * (1 - exp(beta0 - beta1 * Days))
-grid_bert <- data.frame(A = c(0, max(ISR$Cases)), beta0 = c(0, 1), beta1 = c(0, 0.1))
+form_bert <- Cases ~ A * (1 - exp(- beta1 * Days)) ^ beta0
+grid_bert <- data.frame(A = c(0, max(ISR$Cases)*3), beta0 = c(1, 10), beta1 = c(0, 0.01))
 rough_fit_bert <- nls2(form_bert, data = ISR, start = grid_bert, algorithm = "brute-force")
 summary(rough_fit_bert)
-gn_fit_bert <- nls2(form_bert, data = ISR, start = rough_fit_bert) # Error
-coef(rough_fit_logit) # coefficients
-deviance(rough_fit_logit) # SSR
+gn_fit_bert <- nls2(form_bert, data = ISR, start = rough_fit_bert,
+                    control = nls.control(warnOnly = TRUE))
+coef(gn_fit_bert) # coefficients
+deviance(gn_fit_bert) # SSE
+getMSE(ISR$Cases, predict(gn_fit_bert, ISR$Cases)) # MSE
 ```
 
 ```{r bert_graph, fig.show = "hold", out.width="45%", fig.align="center", echo=FALSE}
-ISR <- ISR %>% mutate(y_bert = predict(rough_fit_bert, Days))
-
+ISR <- ISR %>% mutate(y_bert = predict(gn_fit_bert, Days))
 bert_graph <- ggplot(data = ISR, aes(x = Days, y = Cases)) +
   geom_point(color = 'blue', shape = 1, size = 1,) +
   theme_bw() +
@@ -123,10 +136,21 @@ bert_graph <- ggplot(data = ISR, aes(x = Days, y = Cases)) +
       axis.text = element_text(size = 12),
       axis.title = element_text(size = 16, face = "bold"))
 
-bert_graph
-```
+bert_graph_log <- ggplot(data = ISR, aes(x = Days, y = log10(Cases))) +
+  geom_point(color = 'blue', shape = 1, size = 1,) +
+  theme_bw() +
+  geom_line(data = ISR, aes(x = Days, y = log10(y_bert)), color = 'red') +
+  labs(title = paste0("COVID-19 Cases"),
+       subtitle = paste("Israel", "/", "Cumulated"),
+       x = 'Days', y = 'Number of Cases (log10)') +
+  theme(plot.title = element_text(size = 25, face = "bold", color = "black", hjust = 0.5),
+      plot.subtitle = element_text(size = 16, face = "italic", color = "maroon", hjust = 0.5),
+      axis.text = element_text(size = 12),
+      axis.title = element_text(size = 16, face = "bold"))
 
-베르탈란피 모델을 가지고 fitting을 했을 때, 확진자 수를 전혀 예측하지 못하고 있다. 이는 베르탈란피 모델의 개형과 확진자 수의 개형이 완전히 달라서 생길 수 밖에 없다고 추측한다. 총 확진자 수의 증가량이 점점 증가하는 모습을 보이고 있지만, 베르탈란피 모델은 인구의 증가량은 최대 인구와 현재 인구의 차이에 비례하므로, 전혀 다른 결과를 나타냄을 알 수 있다.
+bert_graph; bert_graph_log
+```
+로지스틱 모형에 비해 0 근방에서 비교적 fitting이 잘 되나, 해당 근방의 값을 완벽하게 설명하고 있지는 않다.
 
 # Gompertz Model
 
@@ -137,14 +161,15 @@ y = A e^{ -e^{\beta_0 - \beta_1 x}} \\
 $$
 
 ```{r nls_gomp}
-form_gomp <- Cases ~ A * exp(-exp(beta0 - beta1 * Days/10))
+form_gomp <- Cases ~ A * exp(-exp(beta0 - beta1 * Days))
 grid_gomp <- data.frame(A = c(0, max(ISR$Cases)), beta0 = c(0,1), beta1 = c(0, 0.5))
 rough_fit_gomp <- nls2(form_gomp, data = ISR, start = grid_gomp, algorithm = "brute-force")
 summary(rough_fit_gomp)
 gn_fit_gomp <- nls2(form_gomp, data = ISR, start = rough_fit_gomp)
 summary(gn_fit_gomp)
 coef(gn_fit_gomp) # coefficients
-deviance(gn_fit_gomp) # SSR
+deviance(gn_fit_gomp) # SSE
+getMSE(ISR$Cases, predict(gn_fit_gomp, ISR$Cases)) # MSE
 ```
 
 fitting의 결과를 그림으로 표현하면 아래와 같다.
@@ -176,4 +201,94 @@ gomp_graph_log <- ggplot(data = ISR, aes(x = Days, y = log10(Cases))) +
       axis.text = element_text(size = 12),
       axis.title = element_text(size = 16, face = "bold"))
 gomp_graph; gomp_graph_log
+```
+곰파츠 모델은 로지스틱 모델과 비슷한 경향성을 보이는 것을 알 수 있다.
+
+# Comparison
+
+마지막으로, 세 모델을 한 그래프에 나타내고, 일별 확진자 수도 비교해보자.
+```{r coefs_and_Rsq}
+ISR_predict <- ISR %>%
+  select(Days, y_logit, y_bert, y_gomp) %>%
+  mutate(Diff_logit = c(0, y_logit[-1] - y_logit[-length(y_logit)])) %>%
+  mutate(Diff_bert = c(0, y_bert[-1] - y_bert[-length(y_bert)])) %>%
+  mutate(Diff_gomp = c(0, y_gomp[-1] - y_gomp[-length(y_gomp)])) %>%
+  gather(model, Cases, y_logit, y_bert, y_gomp) %>%
+  mutate(model = ifelse(model == "y_logit", "Logistic model",
+                        ifelse(model == "y_bert", "Bertalanffy model", "Gompertz model"))) %>%
+  mutate(Difference = ifelse(model == "Logistic model", Diff_logit,
+                             ifelse(model == "Gompertz model", Diff_gomp, Diff_bert))) %>%
+  select(-Diff_logit, -Diff_bert, -Diff_gomp)
+
+MSE_vec <- ISR_predict %>%
+  select(-Difference) %>%
+  spread(model, Cases) %>%
+  sapply(function(yhat) getMSE(ISR$Cases, yhat))
+
+Rsq_vec <- ISR_predict %>%
+  select(-Difference) %>%
+  spread(model, Cases) %>%
+  sapply(function(yhat) getRsq(ISR$Cases, yhat))
+
+result <- rbind(coef(gn_fit_bert), coef(gn_fit_gomp), coef(gn_fit_logit)) %>% 
+  cbind(MSE_vec[2:4], Rsq_vec[2:4])
+
+colnames(result)[4:5] <- c("MSE", "R^2")
+as.data.frame(result)
+```
+참고로 위 표에 나타난 계수들, `beta0, beta1`은 각각이 설명하는 변수가 다르므로 위 식을 참고하도록 하고, `A`는 최대 확진자수를 의미한다. $R^2$ 값은 곰파츠 모델이 제일 크고, 로지스틱 모델이 그 다음, 마지막이 버탈란피 모델이지만 세 값이 매우 유사함을 알 수 있다.
+
+
+```{r logit_and_gomp, echo=FALSE}
+cumulated <- ggplot(data = ISR, aes(x = Days, y = Cases)) +
+  geom_point(color = 'black', shape = 1, size= 1) +
+  theme_bw() +
+  geom_line(data = ISR_predict,
+            aes(x = Days, y = Cases, linetype = model, color = model), size = 1.2) +
+  scale_y_continuous(labels = scales::label_scientific()) +
+  labs(title = "COVID-19 Cases",
+       subtitle = paste("Israel", "/", "Cumulated"),
+       y = 'Number of Cases') +
+  theme(plot.title = element_text(size = 25, hjust = 0.5, face = "bold", colour = "black"),
+        plot.subtitle = element_text(size = 16, hjust = 0.5, face = "italic", color = "maroon"),
+        axis.text = element_text(size = 14),
+        axis.title = element_text(size = 16, face = "bold"),
+        legend.title = element_text(size = 14, hjust = 0.5),
+        legend.text = element_text(size = 12))
+
+cumulated
+
+cumulated_log <- ggplot(data = ISR, aes(x = Days, y = log10(Cases))) +
+  geom_point(color = 'black', shape = 1, size= 1) +
+  theme_bw() +
+  geom_line(data = ISR_predict,
+            aes(x = Days, y = log10(Cases), linetype = model, color = model), size = 1.2) +
+  labs(title = "COVID-19 Cases",
+       subtitle = paste("Israel", "/", "Cumulated"),
+       y = 'Number of Cases (log10)') +
+  theme(plot.title = element_text(size = 25, hjust = 0.5, face = "bold", colour = "black"),
+        plot.subtitle = element_text(size = 16, hjust = 0.5, face = "italic", color = "maroon"),
+        axis.text = element_text(size = 14),
+        axis.title = element_text(size = 16, face = "bold"),
+        legend.title = element_text(size = 14, hjust = 0.5),
+        legend.text = element_text(size = 12))
+
+cumulated_log
+
+daily <- ggplot(data = ISR, aes(x = Days, y = Difference)) +
+  geom_point(color = 'black', shape = 1, size = 1) +
+  theme_bw() +
+  geom_line(data = ISR_predict,
+            aes(x = Days, y = Difference, linetype = model, color = model), size = 1.2) +
+  labs(title = "COVID-19 Cases",
+       subtitle = paste("Israel", "/", "Daily"),
+       y = 'Number of Cases') +
+  theme(plot.title=element_text(size = 25, hjust = 0.5, face = "bold", colour = "black"),
+        plot.subtitle=element_text(size = 16, hjust = 0.5, face = "italic", color = "maroon"),
+        axis.text=element_text(size = 14),
+        axis.title=element_text(size = 16, face = "bold"),
+        legend.title = element_text(size = 14, hjust = 0.5),
+        legend.text = element_text(size = 12))
+
+daily
 ```
