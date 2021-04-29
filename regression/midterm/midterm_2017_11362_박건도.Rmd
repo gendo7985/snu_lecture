@@ -1,0 +1,383 @@
+---
+title: 
+  - 회귀분석을 통한 COVID-19 Confirmed Cases의 분석 및 예측
+subtitle:
+  - 러시아의 Confirmed Cases에 대하여
+author: 
+  - 서울대학교 통계학과 2017-11362 박건도
+date: "`r format(Sys.time(), '%Y년 %m월 %d일')`"
+header-includes:
+  - \usepackage[hangul]{kotex}
+output:
+  pdf_document:
+    fig_caption: yes
+    latex_engine: xelatex
+    df_print: kable
+mainfont: NanumBarunGothic
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = NA)
+```
+
+# 0. 라이브러리 설정 및 기초 함수 정의
+
+### 라이브러리
+```{r libraries, message=FALSE, warning=FALSE}
+library(nls2)
+library(segmented)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+set.seed(0)
+```
+
+### 기초 함수
+SSE는 `deviance` 함수를 통해 구할 수 있으나 MSE는 따로 제공되지 않기 때문에, 아래의 식으로 알아낸다. 결정계수 $R^2$ 또한 제공되지 않는 값이므로 다음의 식을 이용하여 구한다.
+```{r MSE_function}
+getMSE <- function(y, yhat, df){ # MSE = SSE / df
+  sum((y - yhat)^2) / df
+}
+getRsq <- function(y, model){ # R^2 = SSR / SST = 1 - SSE / SST
+  1 - deviance(model) / sum((y - mean(y))^2)
+}
+```
+
+# 1. 누적 확진자 수 예측
+
+### 데이터 전처리
+주어진 `.csv` 파일을 불러와 구조를 살펴보면 아래와 같다. 이중, 분석해야 하는 러시아의 자료만 필터링하여 `RUS`를 만들었다.
+```{r data_processing}
+covid <- read.csv('./global_confirmed_cases_210420.csv')
+RUS <- covid %>%
+  filter(CountryCode == 'RUS', Cases > 0) %>%
+  mutate(Date = as.character(Date)) %>%
+  select(Date, Cases, Days)
+str(RUS)
+```
+`Date`의 column에 들어있는 값들에 일관성을 주기 위해, "yyyy-mm-dd"의 형식으로 바꿔주었다. 앞의 6개 데이터를 보면, 데이터의 전처리가 잘 이뤄진 것을 볼 수 있다.
+```{r data_processing_Date}
+RUS$Date <- RUS$Date %>%
+  sapply(function(d) {
+    vec <- strsplit(d, split = "\\.") %>% unlist
+    vec_ch <- sapply(vec, function(i) {
+      ifelse(nchar(i) == 1, paste0("0", i), i)
+    })
+    paste(vec_ch, collapse = "-")
+  })
+start_date <- RUS$Date[1]
+head(RUS)
+```
+우리는 3/20일 까지의 데이터로 trainning을 한 후, 3/21 ~ 4/20일 까지의 데이터로 예측한 값을 비교할 예정이므로 훈련 데이터를 모아 놓은 `RUS_train`과 예측할 데이터를 모아 놓은 `RUS_predict`를 만들었다.
+
+```{r train_and_predict_dataset}
+RUS_train <- RUS %>% filter(as.Date(Date) <= as.Date("2021-03-20"))
+RUS_predict <- RUS %>% filter(as.Date(Date) > as.Date("2021-03-20"))
+tail(RUS_train)
+head(RUS_predict)
+```
+`RUS_train`의 마지막 부분 행과 `RUS_predict`의 처음 부분 행을 보면, 잘 분리가 된 것을 알 수 있다.
+
+## (1) 모델 fitting 및 누적 확진자 수 예측
+
+### (i) Linear regression
+
+위에서 처리한 데이터를 가지고 아래의 식과 같이 선형 회귀 분석을 실시해 보자.
+
+$$
+\mathbf{y} = \beta_0 + \beta_1 \mathbf{x}
+$$
+여기서 $y$는 `Cases`가 되고, $x$는 `Days`가 된다. 위 식과 `lm` 함수를 이용하여 LSE를 구한다.
+
+```{r linear_regression}
+fit_lin <- lm(Cases ~ Days, data = RUS_train)
+summary(fit_lin)
+Rsq_lin <- getRsq(RUS_train$Cases, fit_lin)
+Rsq_lin
+```
+
+선형 회귀 모델 적합 결과, y절편과 기울기 모두 p-value가 2e-16 이하로 유의함을 알 수 있고, $R^2$의 값은 0.8962가 나왔다. 계수는 뒤에서 한 번에 정리하였다.
+
+### (ii) Logistic model
+Logistic 모델은 뒤에서 나올 Gompertz 모델과 마찬가지로 `nls` 함수를 사용하여 비선형 회귀분석을 실시한다. 적합할 Logistic 모델의 식은 아래와 같다.
+$$
+\mathbf{y} = \frac{a}{1 + e^{b - c\mathbf{x}}}
+$$
+
+```{r nls_logit}
+form_logit <- Cases ~ a / (1 + exp(b - c * Days))
+grid_logit <- data.frame(a = c(0, max(RUS_train$Cases)),
+                         b = c(0, 5), c = c(0, 1))
+rough_fit_logit <- nls2(form_logit, data = RUS_train,
+                        start = grid_logit, alg = "brute-force")
+gn_fit_logit <- nls2(form_logit, data = RUS_train, start = rough_fit_logit)
+summary(gn_fit_logit)
+Rsq_logit <- getRsq(RUS_train$Cases, gn_fit_logit)
+Rsq_logit
+```
+
+적합 결과 세 parameters에 대해 모두 유의하게 (p-value < 2e-16) 나왔고, $R^2$의 값은 0.9914가 나왔다.
+
+### (iii) Gompertz Model
+
+Gompertz 모델은 다음과 같다.
+
+$$
+\mathbf{y} = a e^{ -b e^{ - c \mathbf{x}}} 
+$$
+
+이 모델도 위의 모델과 마찬가지로 LSE를 구한다.
+
+```{r nls_gomp}
+form_gomp <- Cases ~ a * exp(-b * exp(- c * Days))
+grid_gomp <- data.frame(a = c(0, max(RUS_train$Cases)),
+                        b = c(1, 10),
+                        c = c(0, 0.01))
+rough_fit_gomp <- nls2(form_gomp, data = RUS_train,
+                       start = grid_gomp, algorithm = "brute-force")
+gn_fit_gomp <- nls2(form_gomp, data = RUS_train, start = rough_fit_gomp)
+summary(gn_fit_gomp)
+Rsq_gomp <- getRsq(RUS_train$Cases, gn_fit_gomp)
+Rsq_gomp
+```
+
+Gompertz 모델 또한 계수가 모두 유의하게 나왔고, $R^2$ 값은 0.9898이 나왔다. \newline
+
+### (iv) 누적 확진자 수의 예측
+
+누적 확진자 수에 대한 예측은 `predict` 함수를 사용하여 예측할 것이다.
+
+```{r predict_cases}
+df <- data.frame(Days = RUS_predict$Days)
+
+RUS_predict <- RUS_predict %>%
+  mutate(fit_lin = predict(fit_lin, df),
+         fit_logit = predict(gn_fit_logit, df),
+         fit_gomp = predict(gn_fit_gomp, df))
+head(RUS_predict)
+```
+이 자료를 가지고 (4)번에서 testMSE를 구할 예정이다.
+
+## (2) 각 모델의 coefficients
+각 모델의 계수를 표로 나타내면 아래와 같다.
+
+```{r coefficients, results = "hold"}
+model1 <- data.frame(beta0 = coef(fit_lin)[1],
+                     beta1 = coef(fit_lin)[2],
+                     R.square = Rsq_lin)
+rownames(model1) <- "Linear regression"
+model1
+
+model2 <- rbind(coef(gn_fit_logit), coef(gn_fit_gomp)) %>%
+  cbind(c(Rsq_logit, Rsq_gomp))
+rownames(model2) <- c("Logistic model", "Gompertz model")
+colnames(model2)[4] <- "R.square"
+as.data.frame(model2)
+```
+
+## (3) 예측값과 실측값 그래프
+
+여기서는 `RUS_train`으로 예측된 계수들로 전체 기간에 대해 그래프를 그려볼 것이다.
+
+```{r predicted_graph, warning = FALSE}
+timeline <- data.frame(Days = RUS$Days)
+
+RUS_predict_overall <- RUS %>%
+  mutate(y_lin = predict(fit_lin, timeline),
+         y_logit = predict(gn_fit_logit, timeline),
+         y_gomp = predict(gn_fit_gomp, timeline)) %>%
+  gather(model, Cases, y_lin, y_logit, y_gomp) %>%
+  mutate(model = ifelse(model == "y_lin", "Linear regression",
+                        ifelse(model == "y_logit",
+                               "Logistic model",
+                               "Gompertz model")))
+
+p1 <- ggplot(data = RUS, aes(x = Days, y = Cases)) +
+  geom_point(color = 'black', shape = 1, size = 5, alpha = 0.5) +
+  geom_line(data = RUS_predict_overall,
+            aes(x = Days, y = Cases, color = model),
+            size = 1.2) +
+  labs(title = "COVID-19 Cases",
+       subtitle = paste("Russia", "/", "Cumulated"),
+       x = paste('Days since', start_date),
+       y = 'Number of Cases') +
+  theme_bw() +
+  theme(plot.title = element_text(size = 25, hjust = 0.5, face = "bold"),
+        plot.subtitle = element_text(size = 16, hjust = 0.5,
+                                     face = "italic", color = "maroon"),
+        axis.title = element_text(size = 16, face = "bold"),
+        axis.text = element_text(size = 14),
+        legend.title = element_text(size = 14, hjust = 0.5),
+        legend.text = element_text(size = 12)) +
+  scale_y_continuous(labels = scales::label_scientific())
+
+p1
+```
+
+## (4) test MSE
+
+이제 적합된 모형이 얼마나 예측을 잘 하는지 알아보자.
+```{r testMSE}
+testMSE_lin <- getMSE(RUS_predict$Cases, RUS_predict$fit_lin, 31 - 2)
+testMSE_logit <- getMSE(RUS_predict$Cases, RUS_predict$fit_logit, 31 - 3)
+testMSE_gomp <- getMSE(RUS_predict$Cases, RUS_predict$fit_gomp, 31 - 3)
+testMSE <- data.frame(test.MSE = c(testMSE_lin, testMSE_logit, testMSE_gomp))
+rownames(testMSE) <- c("Linear regression", "Logistic model", "Gompertz model")
+testMSE
+```
+
+## (5) 적합성 판단
+위 표를 보면, Logistic 모델의 경우 test MSE의 값이 가장 작다. 또한, (2)번의 표에서 결정계수 $R^2$의 값 또한 Logistic 모델이 가장 1에 가깝다. 따라서, test MSE의 값이 가장 작은 Logistic 모델이 러시아의 COVID-19 확진자 수를 잘 적합한다고 할 수 있다.
+
+# 2. segmented 일별 확진자 수 예측
+
+이제는 백신 접종관 관련된 데이터를 가지고 분석해보자. 우선, 2번과 3번 문제를 위한 dataset인 `RUS_vac`을 만든다.
+
+### 데이터 전처리
+```{r data_processing_2}
+vaccine <- read.csv('covid_vaccine.csv')
+
+RUS_vac <- vaccine %>%
+  filter(CountryCode == 'RUS', Cases > 0) %>%
+  mutate(Date = as.character(Date)) %>%
+  select(Date, Difference, people_vaccinated)
+
+RUS_vac$Date <- RUS_vac$Date %>%
+  sapply(function(d) {
+    vec <- strsplit(d, split = "\\.") %>% unlist
+    vec_ch <- sapply(vec, function(i) {
+      ifelse(nchar(i) == 1, paste0("0", i), i)
+    })
+    paste(vec_ch, collapse = "-")
+  })
+start_date <- RUS_vac$Date[1]
+RUS_vac <- RUS_vac %>%
+  mutate(Days_after_Start = as.integer(as.Date(Date) - as.Date(start_date)))
+RUS_vac_train <- RUS_vac %>%
+  filter(as.Date(Date) <= as.Date("2021-03-20"))
+head(RUS_vac)
+tail(RUS_vac_train)
+```
+## (1) 예측 및 시각화
+```{r segmented_poisson}
+timeline_vac <- data.frame(Days_after_Start = RUS_vac$Days_after_Start,
+                           people_vaccinated = RUS_vac$people_vaccinated)
+fit_1 <- glm(Difference ~ log(Days_after_Start+1) + Days_after_Start,
+             data = RUS_vac_train,
+             family = poisson)
+seg_fit_1 <- segmented(fit_1, seg.Z = ~ Days_after_Start, npsi = 2,
+                       control = seg.control(it.max = 10000, n.boot = 50))
+summary(seg_fit_1)
+df_predict_1 <- data.frame(Date = RUS_vac$Date,
+                           Days = RUS_vac$Days_after_Start,
+                           Cases = RUS_vac$Difference,
+                           Predict = exp(predict(seg_fit_1, timeline_vac)))
+psi_1 <- seg_fit_1$psi[1, 2]
+psi_2 <- seg_fit_1$psi[2, 2]
+p_2 <- ggplot(df_predict_1, aes(x = Days, y = Cases)) +
+    geom_point() +
+    geom_line(mapping = aes(x = Days, y = Predict),
+              data = df_predict_1, color = "tomato") +
+    geom_vline(xintercept = psi_1, color = "grey",
+               size = 1.5, linetype = "dashed") +
+    geom_vline(xintercept = psi_2, color = "grey",
+               size = 1.5, linetype = "dashed") +
+  labs(title = "COVID-19 Cases",
+       subtitle = paste("Russia", "/", "Daily"),
+       x = paste('Days since', start_date),
+       y = 'Number of Cases') +
+  theme_bw() +
+  theme(plot.title = element_text(size = 25, hjust = 0.5, face = "bold"),
+        plot.subtitle = element_text(size = 16, hjust = 0.5,
+                                     face = "italic", color = "maroon"),
+        axis.title = element_text(size = 16, face = "bold"),
+        axis.text = element_text(size = 14))
+
+p_2
+```
+
+## (2) test MSE
+위에서 구한 segmented poisson regression 모델을 통해 구한 3/21 ~ 4/20일 까지의 일별 예측값을 이용하여 test MSE를 구해보자.
+```{r segment_testMSE}
+RUS_predict_1 <- df_predict_1 %>%
+  filter(as.Date(Date) >= as.Date("2021-03-21"))
+testMSE_seg_1 <- getMSE(RUS_predict_1$Cases, RUS_predict_1$Predict, 31 - 6)
+testMSE_seg_1 # test MSE
+```
+
+# 3. 백신 접종 변수를 포함한 segmented 분석
+
+## (1). 예측 및 시각화
+여기서는 2번의 (1)에서 사용한 코드에다가 predictor에 people_vaccinated 변수를 추가하여 적합할 것이다.
+```{r vaccine_segment}
+fit_2 <- glm(Difference ~ log(Days_after_Start + 1) +
+               log(people_vaccinated + 1) +
+               Days_after_Start + people_vaccinated,
+             data = RUS_vac_train,
+             family = poisson)
+seg_fit_2 <- segmented(fit_2, seg.Z = ~ Days_after_Start, npsi = 2,
+                       control = seg.control(it.max = 10000, n.boot = 50))
+summary(seg_fit_2)
+df_predict_2 <- data.frame(Date = RUS_vac$Date,
+                           Days = RUS_vac$Days_after_Start,
+                           Cases = RUS_vac$Difference,
+                           Predict = exp(predict(seg_fit_2, timeline_vac)))
+psi_3 <- seg_fit_2$psi[1, 2]
+psi_4 <- seg_fit_2$psi[2, 2]
+p_3 <- ggplot(df_predict_2, aes(x = Days, y = Cases)) +
+    geom_point() +
+    geom_line(mapping = aes(x = Days, y = Predict),
+              data = df_predict_2, color = "tomato") +
+    geom_vline(xintercept = psi_3, color = "grey",
+               size = 1.5, linetype = "dashed") +
+    geom_vline(xintercept = psi_4, color = "grey",
+               size = 1.5, linetype = "dashed") +
+  labs(title = "COVID-19 Cases",
+       subtitle = paste("Russia", "/", "Daily"),
+       x = paste('Days since', start_date),
+       y = 'Number of Cases') +
+  theme_bw() +
+  theme(plot.title = element_text(size = 25, hjust = 0.5, face = "bold"),
+        plot.subtitle = element_text(size = 16, hjust = 0.5,
+                                     face = "italic", color = "maroon"),
+        axis.title = element_text(size = 16, face = "bold"),
+        axis.text = element_text(size = 14))
+
+p_3
+```
+
+## (2). test MSE
+
+마찬가지로 segmented poisson regression 모델을 통해 구한 3/21 ~ 4/20일 까지의 일별 예측값을 이용하여 test MSE를 구해보자.
+
+```{r testMSE_segmented_2}
+RUS_predict_2 <- df_predict_2 %>%
+  filter(as.Date(Date) >= as.Date("2021-03-21"))
+testMSE_seg_2 <- getMSE(RUS_predict_2$Cases, RUS_predict_2$Predict, 31 - 9)
+testMSE_seg_2 # test MSE
+```
+
+## (3). 백신의 효과
+백신 접종자에 대한 정보를 넣지 않았을 때와 넣었을 때의 test MSE 값을 비교해 보면, 4851931 에서 11372929로 꽤 많이 증가한 것으로 보인다. 이는 일별 확진자 수의 모델이 푸아송 분포를 따른다고 가정했을 때, 백신 접종자에 대한 정보가 무의미하게 일별 확진자 수에 영향을 끼침을 알 수 있다. \newline
+우리가 처음 구했던 `seg_fit_1`은 백신 접종자에 대한 정보 없이 시간에 따른 일별 확진자 수를 적합한 것이다. 따라서 이는, 백신을 맞지 않았다고 가정한 후 적합한 것이라고 할 수 있다. 반면 `seg_fit_2`에서는 백신 접종자에 대한 정보를 포함하여 백신 접종을 맞았을 때를 가정하여 적합하였다. 실제로 백신 접종자에 대한 그래프를 그려보면 아래와 같다.
+```{r people_vaccinated}
+p_4 <- ggplot(RUS_vac_train, aes(x = Days_after_Start, y = people_vaccinated)) +
+  geom_point() +
+    geom_vline(xintercept = psi_3, color = "grey",
+               size = 1.5, linetype = "dashed") +
+    geom_vline(xintercept = psi_4, color = "grey",
+               size = 1.5, linetype = "dashed") +
+  labs(title = "COVID-19 Vaccinated People",
+       subtitle = paste("Russia", "/", "Cumulated"),
+       x = paste('Days since', start_date),
+       y = 'Number of Vaccinated people') +
+  theme_bw() +
+  theme(plot.title = element_text(size = 25, hjust = 0.5, face = "bold"),
+        plot.subtitle = element_text(size = 16, hjust = 0.5,
+                                     face = "italic", color = "maroon"),
+        axis.title = element_text(size = 16, face = "bold"),
+        axis.text = element_text(size = 14))
+
+p_4
+```
+그 결과 실제 데이터를 더 잘 예측하지 못하였고, 따라서 러시아에서의 백신 접종은 효과가 없다고 결론내릴 수 있다.
