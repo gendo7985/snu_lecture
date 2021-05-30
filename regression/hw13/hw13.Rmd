@@ -1,0 +1,236 @@
+---
+title: 
+  - 13주차 과제
+author: 
+  - 서울대학교 통계학과 2017-11362 박건도
+date: "`r format(Sys.time(), '%Y년 %m월 %d일')`"
+header-includes:
+  - \usepackage[hangul]{kotex}
+output:
+  pdf_document:
+    fig_caption: yes
+    latex_engine: xelatex
+    df_print: kable
+mainfont: NanumBarunGothic
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = NA)
+set.seed(0)
+```
+
+```{r libraries, include = FALSE}
+library(dplyr)
+library(tscount)
+library(ggplot2)
+```
+
+```{r data}
+data <- read.csv("owid_covid_210518.csv")
+data <- data %>% filter(location == "Romania") %>% select(-location)
+first_case <- data[1, "date"]
+data <- data %>%  # scaling
+  mutate(days = as.Date(date) - as.Date(first_case) + 1,
+         days = as.numeric(days),
+         logdays = log(days),
+         new_cases_per_million = new_cases_per_million * 1000,
+         new_deaths_per_million = new_deaths_per_million * 1000,
+         icu_patients_per_million = icu_patients_per_million * 1000,
+         people_vaccinated_per_hundred = people_vaccinated_per_hundred)
+```
+
+# 1. 일일 신규 확진자 수
+
+### 1) 백신 효과를 나타내는 모수의 정의 및 추정
+
+```{r new_cases_per_mil}
+timeseries <- ts(data[, "new_cases_per_million"])
+regressors <- data[, c("people_vaccinated_per_hundred",
+                       "days", "logdays")]
+timeseries_train <- window(timeseries, end = 432)
+regressors_train <- window(ts(regressors), end = 432)
+timeseries_test <- window(timeseries, start = 433, end = 447)
+regressors_test <- window(ts(regressors), start = 433, end = 447)
+
+vaccine_fit <- tsglm(timeseries_train,
+                     model = list(past_obs = c(1,7), past_mean = c(1)),
+                     link = "log", distr = "poisson",
+                     xreg = regressors_train)
+acf(residuals(vaccine_fit))
+```
+ACF 그래프를 보면 0을 제외하고는 전반적으로 0.2 미만의 autocorrelation을 갖는다. 위 적합 결과의 vaccinated_people_per_hundred의 계수가 바로 백신 효과를 나타내는 모수가 된다.
+
+
+### 2) 백신 효과에 대한 유의성 검정
+
+```{r summary_cases}
+summary(vaccine_fit)
+```
+people_vaccinated_per_hundred의 계수를 보면 -0.00339로, Confidence Interval 또한 -0.003 근처이다. 따라서 유의하게 일일 확진자수를 감소시킨다고 할 수 있다.
+
+
+### 3) 추정된 백신 효과를 기반으로 한 향후 신규 확진자 수의 추정
+
+```{r vaccine_cases}
+a = predict(vaccine_fit, n.ahead = 15, level = 0.9, global = TRUE,
+            B = 2000, newxreg = regressors_test)
+regressors_test_2 <- regressors %>%
+  mutate(people_vaccinated_per_hundred = 2 * people_vaccinated_per_hundred) %>%
+  ts() %>% window(start = 433, end = 447)
+b = predict(vaccine_fit, n.ahead = 15, level = 0.9, global = TRUE,
+            B = 2000, newxreg = regressors_test_2)
+regressors_test_3 <- regressors %>%
+  mutate(people_vaccinated_per_hundred = 5 * people_vaccinated_per_hundred) %>%
+  ts() %>% window(start = 433, end = 447)
+c = predict(vaccine_fit, n.ahead = 15, level = 0.9, global = TRUE,
+            B = 2000, newxreg = regressors_test_3)
+regressors_test_4 <- regressors %>%
+  mutate(people_vaccinated_per_hundred = 10 * people_vaccinated_per_hundred) %>%
+  ts() %>% window(start = 433, end = 447)
+d = predict(vaccine_fit, n.ahead = 15, level = 0.9, global = TRUE,
+            B = 2000, newxreg = regressors_test_4)
+
+result <- data.frame(
+  days = rep(433:447, 5),
+  x = c(timeseries_test, a$pred, b$pred, c$pred, d$pred),
+  type = rep(c("actual", "predicted", "200%", "500%", "1000%"), each = 15))
+
+ggplot(data = result, aes(x = days, y = x, color = type, linetype = type)) +
+  geom_line()+
+  scale_linetype_manual(values = c(rep("dashed", 3), "solid", "dashed"))+
+  scale_color_manual(values = c("brown", "blue", "darkgreen", "black", "red"))+
+  theme_bw()
+```
+백신 접종률을 기존의 predicted에서 2배, 5배, 10배 늘린 결과, 예측된 신규 확진자 수는 점점 감소함을 알 수 있다.
+
+# 2. 일일 사망자 수
+
+### 1) 백신 효과를 나타내는 모수의 정의 및 추정
+
+```{r new_deaths_per_mil}
+timeseries <- ts(data[, "new_deaths_per_million"])
+regressors <- data[, c("people_vaccinated_per_hundred",
+                       "new_cases_per_million",
+                       "days", "logdays")]
+timeseries_train <- window(timeseries, end = 432)
+regressors_train <- window(ts(regressors), end = 432)
+timeseries_test <- window(timeseries, start = 433, end = 447)
+regressors_test <- window(ts(regressors), start = 433, end = 447)
+
+vaccine_fit <- tsglm(timeseries_train,
+                     model = list(past_obs = c(1,7), past_mean = c(1)),
+                     link = "log", distr = "poisson",
+                     xreg = regressors_train)
+acf(residuals(vaccine_fit))
+```
+ACF 그래프를 보면 0을 제외하고는 전반적으로 0.1 근처의 autocorrelation을 갖는다. 위 적합 결과의 vaccinated_people_per_hundred의 계수가 바로 백신 효과를 나타내는 모수가 된다.
+
+
+### 2) 백신 효과에 대한 유의성 검정
+
+```{r summary_deaths}
+summary(vaccine_fit)
+```
+people_vaccinated_per_hundred의 계수를 보면 -2.84e-05로, Confidence Interval은 [-7.86e-04, 8.43e-04]로 0을 포함한다. 따라서 백신 접종률은 사망자 수에 유의미한 영향을 끼치지 않는다고 할 수 있다.
+
+
+### 3) 추정된 백신 효과를 기반으로 한 향후 사망자 수의 추정
+
+```{r vaccine_deaths}
+a = predict(vaccine_fit, n.ahead = 15, level = 0.9, global = TRUE,
+            B = 2000, newxreg = regressors_test)
+regressors_test_2 <- regressors %>%
+  mutate(people_vaccinated_per_hundred = 2 * people_vaccinated_per_hundred) %>%
+  ts() %>% window(start = 433, end = 447)
+b = predict(vaccine_fit, n.ahead = 15, level = 0.9, global = TRUE,
+            B = 2000, newxreg = regressors_test_2)
+regressors_test_3 <- regressors %>%
+  mutate(people_vaccinated_per_hundred = 5 * people_vaccinated_per_hundred) %>%
+  ts() %>% window(start = 433, end = 447)
+c = predict(vaccine_fit, n.ahead = 15, level = 0.9, global = TRUE,
+            B = 2000, newxreg = regressors_test_3)
+regressors_test_4 <- regressors %>%
+  mutate(people_vaccinated_per_hundred = 10 * people_vaccinated_per_hundred) %>%
+  ts() %>% window(start = 433, end = 447)
+d = predict(vaccine_fit, n.ahead = 15, level = 0.9, global = TRUE,
+            B = 2000, newxreg = regressors_test_4)
+
+result <- data.frame(
+  days = rep(433:447, 5),
+  x = c(timeseries_test, a$pred, b$pred, c$pred, d$pred),
+  type = rep(c("actual", "predicted", "200%", "500%", "1000%"), each = 15))
+
+ggplot(data = result, aes(x = days, y = x, color = type, linetype = type)) +
+  geom_line()+
+  scale_linetype_manual(values = c(rep("dashed", 3), "solid", "dashed"))+
+  scale_color_manual(values = c("brown", "blue", "darkgreen", "black", "red"))+
+  theme_bw()
+```
+애초에 백신 접종률이 유의미한 영향을 끼치지 않으므로, 백신 접종률을 늘렸을 때 큰 변화가 생기지 않는다.
+
+# 3. 일일 ICU 환자 수
+
+### 1) 백신 효과를 나타내는 모수의 정의 및 추정
+
+```{r icu_patients_per_mil}
+timeseries <- ts(data[, "icu_patients_per_million"])
+regressors <- data[, c("people_vaccinated_per_hundred",
+                       "new_cases_per_million",
+                       "days", "logdays")]
+timeseries_train <- window(timeseries, end = 432)
+regressors_train <- window(ts(regressors), end = 432)
+timeseries_test <- window(timeseries, start = 433, end = 447)
+regressors_test <- window(ts(regressors), start = 433, end = 447)
+
+vaccine_fit <- tsglm(timeseries_train,
+                     model = list(past_obs = c(1,7), past_mean = c(1)),
+                     link = "log", distr = "poisson",
+                     xreg = regressors_train)
+acf(residuals(vaccine_fit))
+```
+ACF 그래프를 보면 0을 제외하고는 전반적으로 0.1 미만의 autocorrelation을 갖는다. 위 적합 결과의 vaccinated_people_per_hundred의 계수가 바로 백신 효과를 나타내는 모수가 된다.
+
+
+### 2) 백신 효과에 대한 유의성 검정
+
+```{r summary_icu}
+summary(vaccine_fit)
+```
+people_vaccinated_per_hundred의 계수를 보면 -1.27e-04로, Confidence Interval 또한 -1.02e-04를 넘지 않는. 따라서 유의하게 일일 ICU 환자 수를 감소시킨다고 할 수 있다.
+
+
+### 3) 추정된 백신 효과를 기반으로 한 향후 일일 ICU 환자 수의 추정
+
+```{r vaccine_icu}
+a = predict(vaccine_fit, n.ahead = 15, level = 0.9, global = TRUE,
+            B = 2000, newxreg = regressors_test)
+regressors_test_2 <- regressors %>%
+  mutate(people_vaccinated_per_hundred = 2 * people_vaccinated_per_hundred) %>%
+  ts() %>% window(start = 433, end = 447)
+b = predict(vaccine_fit, n.ahead = 15, level = 0.9, global = TRUE,
+            B = 2000, newxreg = regressors_test_2)
+regressors_test_3 <- regressors %>%
+  mutate(people_vaccinated_per_hundred = 5 * people_vaccinated_per_hundred) %>%
+  ts() %>% window(start = 433, end = 447)
+c = predict(vaccine_fit, n.ahead = 15, level = 0.9, global = TRUE,
+            B = 2000, newxreg = regressors_test_3)
+regressors_test_4 <- regressors %>%
+  mutate(people_vaccinated_per_hundred = 10 * people_vaccinated_per_hundred) %>%
+  ts() %>% window(start = 433, end = 447)
+d = predict(vaccine_fit, n.ahead = 15, level = 0.9, global = TRUE,
+            B = 2000, newxreg = regressors_test_4)
+
+result <- data.frame(
+  days = rep(433:447, 5),
+  x = c(timeseries_test, a$pred, b$pred, c$pred, d$pred),
+  type = rep(c("actual", "predicted", "200%", "500%", "1000%"), each = 15))
+
+ggplot(data = result, aes(x = days, y = x, color = type, linetype = type)) +
+  geom_line()+
+  scale_linetype_manual(values = c(rep("dashed", 3), "solid", "dashed"))+
+  scale_color_manual(values = c("brown", "blue", "darkgreen", "black", "red"))+
+  theme_bw()
+```
+백신 접종률을 기존의 predicted에서 2배, 5배, 10배 늘린 결과, 예측된 신규 확진자 수는 점점 감소함을 알 수 있다.
+
+
