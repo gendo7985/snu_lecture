@@ -127,3 +127,5 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+MF_of_DNN/hw5/mnist_data/
