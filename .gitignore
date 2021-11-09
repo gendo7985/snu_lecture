@@ -129,3 +129,5 @@ dmypy.json
 .pyre/
 
 MF_of_DNN/hw5/mnist_data/
+
+MF_of_DNN/hw6/cifar_10data/
