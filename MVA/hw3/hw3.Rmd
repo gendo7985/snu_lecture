@@ -1,0 +1,96 @@
+---
+title: 
+  - 다변량자료분석 및 실습 Homework 3
+author: 
+  - 서울대학교 통계학과 2017-11362 박건도
+date: "`r format(Sys.time(), '%Y년 %m월 %d일')`"
+header-includes:
+  - \usepackage[hangul]{kotex}
+output:
+  pdf_document:
+    fig_caption: yes
+    latex_engine: xelatex
+    df_print: kable
+mainfont: NanumBarunGothic
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyr)
+library(dplyr)
+setwd('~/Github/snu_lecture/MVA/hw3/')
+pendigit3 <- read.table('pendigit3.txt', sep=",")
+```
+
+
+# Problem 3
+## (a)
+```{r}
+draw_digit <- function(pts, main=""){
+  x <- pts[seq(1,15,2)]
+  y <- pts[seq(2,16,2)]
+  plot(unlist(x),unlist(y),'b', xlab="x", ylab="y", main=main)
+}
+
+draw_digit(pendigit3[1,])
+```
+
+## (b)
+### (1) scatterplot matrix
+```{r}
+x <- pendigit3[,-17]
+spr <- princomp(x)
+pairs(spr$scores[,1:4])
+```
+
+### (2) scree plot
+```{r}
+psych::scree(x)
+```
+
+## (c) MVN
+```{r}
+mvnormtest::mshapiro.test(t(x))
+```
+
+p-value < 2.2e-16, x is not MVN. Also, scatter plot of principal components seems that x is not MVN.
+
+## (d)
+In scree plot, 4~5 principal components explains most parts of original data(that point is elbow). I will choose 4 PCs because 4 is more easy to interpret than 5.
+
+## (e)
+```{r}
+spr$loadings[,1:4]
+```
+- PC1 has highly related with V1, V3. These values are x-coordinates of first, second points.
+- PC2 has highly related with V5, V7. These values are x-coordinates of third, fourth points.
+- PC3 has highly related with V7, V9. These values are x-coordinates of fourth, fifth points.
+- PC4 has highly related with V5, V15. These values are x-coordinates of third, last points.
+
+For example, let's show the difference from the values of PCs.
+```{r}
+Xbar <- colMeans(x)
+Xcentered <- x - matrix(Xbar, nrow=1055, ncol=16, byrow=TRUE)
+xdec <- svd(Xcentered)
+par(mfrow=c(4,7), mar=rep(1.5,4), oma=rep(0,4))
+for (j in 1:4){
+  for (k in -3:3){
+    draw_digit(Xbar + k * xdec$d[j]*xdec$v[,j] / sqrt(1055),
+               main = paste0("PC",j,": ",k,"sd"))
+  }
+}
+```
+
+- PC1 shows the position of 1st, 2nd points. (focus on volume of upper part / lower part)
+- PC2 shows the position of 3rd, 4th points. (focus on position of upper part / lower part)
+- PC3 shows the shape of 3. (focus on waist of 3.)
+- PC4 shows the shape of 3. (focus on first-last points' positions)
+
+## (f)
+```{r}
+pendigit8 <- read.table('pendigit8.txt',sep=",")
+pendigit <- rbind(pendigit3, pendigit8)
+pairs(princomp(pendigit[,-17])$scores[,1:4], col=pendigit[,17])
+```
+
+Some parts of digit 3 are mixed with digit 8 area. It is hard to separate nicely.

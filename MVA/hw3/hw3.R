@@ -1,0 +1,1 @@
+pendigit3 <- read('pendigit3.txt','r')
