@@ -120,6 +120,7 @@ cnt
 # 4. Report the clustering result by providing the class probabilities for each observation. 
  
 ```{r}
+paste0('pi1: ', theta[[1]], ', pi2: ', theta[[4]])
 pi1X <- E.step(theta, data)
 predicted <- ifelse(pi1X > 0.5, 1, 2)
 

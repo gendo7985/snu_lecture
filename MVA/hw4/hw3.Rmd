@@ -16,8 +16,10 @@ mainfont: NanumBarunGothic
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(caret)
 library(dplyr)
 library(mvtnorm)
+library(knitr)
 ```
 
 
@@ -25,16 +27,16 @@ library(mvtnorm)
 ## (c)
 ```{r}
 # data preparation
-new.iris <- iris %>% filter(Species %in% c('Versicolor', 'Virginica'))
+new.iris <- iris %>% filter(Species != 'setosa')
 species <- as.factor(as.vector(new.iris[,5]))
 new.iris <- new.iris[,-5]
 
 # simple estimators for parameters
-mu1 <- colMeans(new.iris[species == 'Versicolor',])
-mu2 <- colMeans(new.iris[species == 'Virginica',])
-S1 <- cov(new.iris[species == 'Versicolor',])
-S2 <- cov(new.iris[species == 'Virginica',])
-pi1 <- (species == 'Versicolor') / length(species) 
+mu1 <- colMeans(new.iris[species == 'versicolor',])
+mu2 <- colMeans(new.iris[species == 'virginica',])
+S1 <- cov(new.iris[species == 'versicolor',])
+S2 <- cov(new.iris[species == 'virginica',])
+pi1 <- (species == 'versicolor') / length(species) 
 pi2 <- 1 - pi1 
 
 # classification
@@ -43,16 +45,16 @@ pi2_X <- pi2 * dmvnorm(new.iris, mean = mu2, sigma = S2) # P(X, Label = Virginic
 bayes <- pi1_X / pi2_X > pi2 / (10 * pi1)
 original_bayes <- pi1_X / pi2_X > pi2 / pi1
 
-predicted <- ifelse(bayes, 'Versicolor', 'Virginica')
-table(species, predicted)
+predicted <- ifelse(bayes, 'versicolor', 'virginica')
+table(predicted, species)
 
-original_predicted <- ifelse(original_bayes, 'Versicolor', 'Virginica')
-table(species, original_predicted)
+# original Bayes classifier (c(p|n)/c(n|p) = 1)
+original_predicted <- ifelse(original_bayes, 'versicolor', 'virginica')
+table(original_predicted, species)
 ```
 
 주어진 loss table을 이용하면, True Versicolor일 때 predicted Verginica의 loss가 10이다. 1을 줬을 때 보다 True Versicolor, predicted Verginica의 수가 줄어듬을 알 수 있다.
 
 ```{r}
-# pairs(new.iris, col = ifelse(predicted == 'Versicolor', 'red', 'blue'))
+pairs(new.iris, col = ifelse(predicted == 'versicolor', 'red', 'blue'))
 ```
-![rmarkdown 에러로 인해 사진 첨부](visualization.png)
