@@ -1,0 +1,133 @@
+---
+title: 
+  - 다변량자료분석 및 실습 Lab 7
+author: 
+  - 서울대학교 통계학과 2017-11362 박건도
+date: "`r format(Sys.time(), '%Y년 %m월 %d일')`"
+header-includes:
+  - \usepackage[hangul]{kotex}
+output:
+  pdf_document:
+    fig_caption: yes
+    latex_engine: xelatex
+    df_print: kable
+mainfont: NanumBarunGothic
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,warning = FALSE, message = FALSE)
+library(car)
+library(MASS)
+library(cluster)
+library(mvtnorm)
+library(mclust)
+library(caret)
+set.seed(0)
+```
+
+# 1. Load the dataset "rattle.data::wine". Standardize the data. 
+
+```{r}
+data <- rattle.data::wine[,-1]
+data <- scale(data)
+```
+
+# 2. Use the last 12 variables (just excluding "Type").
+## a) determine the number of clusters.
+
+```{r}
+gap <- clusGap(data, FUN = kmeans, K.max = 8)
+plot(gap)
+```
+
+From gap statistics, we can determine K = 3.
+
+## b) visualize your clustering results (on a 2-D coordinate)
+
+```{r}
+k <- 3
+kmeansobj <- kmeans(data,k)
+pairs(data[,1:4], col = kmeansobj$cluster)
+```
+
+12개의 variable을 모두 plot 하면 너무 그림이 많아져서 4개만 그려보았다. PCA를 통해 상위 4개의 결과를 보면 아래와 같다.
+
+```{r}
+pairs(princomp(data)$scores[,1:4], col = kmeansobj$cluster)
+```
+
+## c) create a confusion table, comparing the clustering results with true labels.
+
+```{r}
+predicted <- as.factor(kmeansobj$cluster)
+confusionMatrix(predicted, rattle.data::wine[,1])
+```
+
+꽤 잘 분류하는 것을 알 수 있다.
+
+# 3. Repeat the E and M steps until the estimates do not change substantially. How many iterations do you need for the change in pi1 is less than 10e-5?
+
+```{r}
+E.step <- function(theta, X) {# theta = list(pi1, mu1, sigma1, pi2, mu2, sigma2)
+  pi1_X <- theta[[1]] * dmvnorm(X, mean = theta[[2]], sigma = theta[[3]])
+  pi2_X <- theta[[4]] * dmvnorm(X, mean = theta[[5]], sigma = theta[[6]])
+  pi1X <-  pi1_X / (pi1_X + pi2_X)
+  pi1X
+}
+
+M.step <- function(pi1X, X){
+  theta <- list()
+  theta[[2]] <- apply(X, 2, weighted.mean, w = pi1X) 
+  cX1 <- apply(X, 1, function(x) x - theta[[2]])
+  theta[[3]] <- cX1 %*% diag(pi1X) %*% t(cX1) / sum(pi1X)
+  
+  theta[[5]] <- apply(X, 2, weighted.mean, w = 1 - pi1X) 
+  cX2 <- apply(X, 1, function(x) x - theta[[5]])
+  theta[[6]] <- cX2 %*% diag(1-pi1X) %*% t(cX2) / sum(1 - pi1X)
+  
+  theta[[1]] <- sum(pi1X) / n 
+  theta[[4]] <- 1 - theta[[1]]
+  theta
+}
+
+# initial guess for theta
+n <- nrow(data)
+kmeansobj <- kmeans(data,2)
+
+mu1 <- colMeans(data[kmeansobj$cluster == 1,])
+mu2 <- colMeans(data[kmeansobj$cluster == 2,])
+S1 <- cov(data[kmeansobj$cluster == 1,])
+S2 <- cov(data[kmeansobj$cluster == 2,])
+pi1 <- kmeansobj$size[1] / n 
+pi2 <- 1 - pi1
+theta <- list(pi1, mu1, S1, pi2, mu2, S2)
+
+# EM algorithm
+cnt = 0
+while (TRUE) {
+  cnt <- cnt + 1
+  pi1X <- E.step(theta, data)
+  new_theta <- M.step(pi1X, data)
+  if (abs(theta[[1]] - new_theta[[1]]) < 1e-5) {
+    break
+  }
+  theta <- new_theta
+}
+cnt
+```
+
+
+# 4. Report the clustering result by providing the class probabilities for each observation. 
+ 
+```{r}
+pi1X <- E.step(theta, data)
+predicted <- ifelse(pi1X > 0.5, 1, 2)
+
+pairs(data[,1:4], col = predicted)
+```
+
+PCA를 통한 그림은 다음과 같다.
+
+```{r}
+pairs(princomp(data)$scores[,1:4], col = predicted)
+```
