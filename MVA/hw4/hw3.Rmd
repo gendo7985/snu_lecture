@@ -40,8 +40,8 @@ pi1 <- (species == 'versicolor') / length(species)
 pi2 <- 1 - pi1 
 
 # classification
-pi1_X <- pi1 * dmvnorm(new.iris, mean = mu1, sigma = S1) # P(X, Label = Versicolor)
-pi2_X <- pi2 * dmvnorm(new.iris, mean = mu2, sigma = S2) # P(X, Label = Virginica)
+pi1_X <- dmvnorm(new.iris, mean = mu1, sigma = S1) # P(X|Label = Versicolor)
+pi2_X <- dmvnorm(new.iris, mean = mu2, sigma = S2) # P(X|Label = Virginica)
 bayes <- pi1_X / pi2_X > pi2 / (10 * pi1)
 original_bayes <- pi1_X / pi2_X > pi2 / pi1
 
@@ -56,5 +56,6 @@ table(original_predicted, species)
 주어진 loss table을 이용하면, True Versicolor일 때 predicted Verginica의 loss가 10이다. 1을 줬을 때 보다 True Versicolor, predicted Verginica의 수가 줄어듬을 알 수 있다.
 
 ```{r}
-pairs(new.iris, col = ifelse(predicted == 'versicolor', 'red', 'blue'))
+pairs(new.iris, col = ifelse(predicted == 'versicolor', 'red', 'blue')) # predicted
+pairs(new.iris, col = ifelse(species == 'versicolor', 'red', 'blue')) # true
 ```
