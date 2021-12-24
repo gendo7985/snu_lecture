@@ -128,9 +128,4 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-MF_of_DNN/hw5/mnist_data/
-
-MF_of_DNN/hw6/cifar_10data/
-
-MF_of_DNN/hw7/kmnist_data/
-MF_of_DNN/hw7/mnist_data/
+MF_of_DNN/data/
