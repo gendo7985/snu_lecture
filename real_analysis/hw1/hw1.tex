@@ -124,8 +124,8 @@ Therefore, $\MM_1$ is a $\sigma$-algebra.
 Next, to show that $\mu$ is a measure on $(X, \MM_1)$, we have to show the countable additivity $(\mu(\varnothing)=0<\infty$ is easy to show). Likewise the \v{Solution} of \v{Problem\ 1.}, it is clear that $(X, \MM_1, \mu)$ is a measure space.\\ \\
 \v{(2)} To show iff condition, we have to show following 2 statements:\\
 \indent(i) $f(x)=c$ a.e. $[\mu]\quad \Rightarrow \quad f$ is measurable on $\MM_1$.\\
-For open $V \subseteq \RR$, ${}^\exists N$ s.t. $\mu(N)=0$, $f(x)=c$ where $x\in X\setminus N$.\\
-Let's show $\mu(f^{-1}(V))=0$ or $\mu(X)$, so that $f^{-1}(V) \in \MM_1$.\\
+${}^\exists N$ s.t. $\mu(N)=0$, $f(x)=c$ where $x\in X\setminus N$.\\
+Let's show $\mu(f^{-1}(V))=0$ or $\mu(X)$ for open $V \subseteq \RR$, , so that $f^{-1}(V) \in \MM_1$.\\
 
 If $c \in V$,
 \begin{align*}
@@ -139,12 +139,16 @@ $\therefore \mu(f^{-1}(V))=0$ ($\because \mu(N)=0$).\\
 $\therefore f^{-1}(V) \in \MM_1$.\\
 
 \indent(ii) $f$ is measurable on $\MM_1\quad\Rightarrow\quad f(x)=c$ a.e. $[\mu]$.\\
-Let $c = \sup\{a\in\RR: \mu(f^{-1}((a,\infty))=\mu(X)\}$. Then for $\e>0$, $\mu(f^{-1}((c-\e, \infty)) = \mu(X)$ and $\mu(f^{-1}((c+\e, \infty)) = 0$ by the definition of supremum.\\
+Let $c = \sup\{a\in\RR: \mu(f^{-1}((a,\infty))=\mu(X)\}$.\\
+Since $\lim\limits_{n\to\infty}\mu(f^{-1}((n,\infty))=\mu(\bigcap_{n=1}^{\infty}f^{-1}((n,\infty)))=\mu(f^{-1}(\varnothing))=0$, ${}^\exists N$ s.t. $\mu(f^{-1}(N,\infty))=0$ and $c<N<\infty$.\\
+Likewise, ${}^\exists M$ s.t. $\mu(f^{-1}(M,\infty))=\mu(X)$ and $M<c<N$, i.e., $c\in\RR$.\\
+ Then for $n\in\NN$, $\mu(f^{-1}((c-\frac{1}{n}, \infty)) = \mu(X)$ and $\mu(f^{-1}((c+\frac{1}{n}, \infty)) = 0$ by the definition of supremum.\\
 Then,
 \begin{align*}
-\mu(X) &= \mu(f^{-1}((c-\e, \infty)) - \mu(f^{-1}((c+\e, \infty))\\
-&= \mu(f^{-1}(c-\e, c+\e]))\\
-&\rightarrow \mu(f^{-1}(\{c\})\quad(\rm{as}\ \e \rightarrow 0).
+\mu(X) &= \mu\left(f^{-1}\left(\left(c-\frac{1}{n}, \infty\right)\right)\right) - \mu\left(f^{-1}\left(\left(c+\frac{1}{n}, \infty\right)\right)\right)\\
+&= \mu\left(f^{-1}\left(\left(c-\frac{1}{n}, c+\frac{1}{n}\right]\right)\right),\\
+\mu(f^{-1}(\{c\})) &=\mu\left(\bigcap_{n=1}^{\infty}f^{-1}\left(\left(c-\frac{1}{n},c+\frac{1}{n}\right]\right)\right)\\
+&=\lim_{n\to\infty}\mu\left(f^{-1}\left(\left(c-\frac{1}{n}, c+\frac{1}{n}\right]\right)\right)=\mu(X)
 \end{align*}
 $\therefore f(x)=c$ a.e. $[\mu]$. ($\because \mu(f^{-1}(\RR\setminus\{c\}))=0$).
 \end{s}
@@ -202,23 +206,19 @@ Prove that
 \end{align*}
 \end{p}
 \begin{s}
-Since $f,\ g \in L^1(\mu)$, $\int_X |f|\ d\mu$, $\int_X |g|\ d\mu < \infty$ and so $\int_X |f|+|g|\ d\mu < \infty$. Then,
+It is clear that $|h|, (|h|\rchi_{B_n})_{n=1}^{\infty}$ are measurable functions.\\
+Since $B_n \nearrow X$, $|h|\rchi_{B_n}\nearrow |h|$.\\
+Also, $|h|\in L^1(\mu)$ and $|h|\rchi_{B_n} \le |h|$, ${}^\forall n\in\NN$.\\
+DCT $\Rightarrow$ $\int_X \left||h|-|h|\rchi_{B_n}\right|\ d\mu \to 0$ as $n\to\infty$.
 \begin{align*}
-\infty > \int_X |f|+|g|\ d\mu &= \int_{X\cap B_n} |f|+|g|\ d\mu + \int_{X\cap {B_n}^c} |f|+|g|\ d\mu \\
-&>\int_{X\cap B_n} |f|+|g|\ d\mu +n \cdot \mu(X\cap {B_n}^c)
+0 \le \left| \int_X h-h\rchi_{B_n}\ d\mu \right| &\le \int_X \left|h-h\rchi_{B_n}\right|\ d\mu\\
+&=\int_X |h|(1-\rchi_{B_n})\ d\mu\\
+&= \int_X \left||h|-|h|\rchi_{B_n}\right|\ d\mu\to 0
 \end{align*}
-$\therefore\mu(X\setminus{B_n})\to 0$ as $n \to \infty$.\\
-Then,
 \begin{align*}
-\int_X |h - h\rchi_{B_n}|\ d\mu & = \int_X |h|(1-\rchi_{B_n})\ d\mu\\
-&= \int_X|h|\ d\mu - \int_X |h|\rchi_{B_n}\ d\mu\\
-&= \int_{B_n} |h|\ d\mu + \int_{X\setminus B_n} |h|\ d\mu - \int_X |h|\rchi_{B_n}\ d\mu \\
-&= \int_{X\setminus B_n} |h|\ d\mu \to 0\quad \mathrm{as}\quad n \to\infty\quad(\because h\in L^1(\mu))
+\therefore \int_X h\ d\mu = \lim_{n\to\infty}\int_X h\rchi_{B_n}\ d\mu = \lim_{n\to\infty}\int_{B_n}h\ d\mu.
 \end{align*}
-Since $0 \le \left| \int_X h-h\rchi_{B_n}\ d\mu \right|\le \int_X |h - h\rchi_{B_n}|\ d\mu \to 0$, $\lim\limits_{n\to\infty}\int_X h-h\rchi_{B_n}\ d\mu= 0$.\\
-\begin{align*}
-\therefore \int_X h\ d\mu = \lim\limits_{n\to\infty}\int_X h\rchi_{B_n}\ d\mu = \lim\limits_{n\to\infty}\int_{B_n}h\ d\mu.
-\end{align*}
+
 \end{s}
 \bigskip
 % problem 6
@@ -233,7 +233,8 @@ Prove that
 \end{align*}
 \end{p}
 \begin{s}
-There exists $N\in\MM$ s.t. $\mu(N)=0$, and ${}^\exists m,n\in\NN$ s.t. $f_m(x) >g_n(x)$ for all $x\in N$. Then, $f_m(x) \le g_n(x)$ for ${}^\forall m,n\in\NN,\ {}^\forall x\in X\setminus N$.\\
+First of all, let's show that $f_m \ge g_n$ for all $m, n\in\NN$ a.e. $[\mu].$\\
+Let $N_{m,n}=\{x\in X:\ f_m(x) > g_n(x)\}$ so that $\mu(N_{m,n})=0$. Then $0\le\mu(\bigcup_{m,n}N_{m,n})\le\sum_{m,n}\mu(N_{m,n})=0$. Thus, for $N=\bigcup_{m,n}N_{m,n}$, $\mu(N)=0$ and ${}^\exists m,n\in\NN$ s.t. $f_m(x) >g_n(x)$ for all $x\in N$, i.e., $f_m(x) \le g_n(x)$ for ${}^\forall m,n\in\NN,\ {}^\forall x\in X\setminus N$.\\
 It suffices to show that $\sup f_n(x) \le \inf g_n(x)$, ${}^\forall x\in X\setminus N$.\\
 Let $x\in X\setminus N$ is given and assume that $\sup f_n(x) > \inf g_n(x)$.\\
 Then, ${}^\exists M\in\NN$ satisfying followings:
@@ -256,11 +257,7 @@ Let $(X, \MM, \mu)$ be a measure space, and let $f\in L^1(\mu)$. Prove that, for
 \end{align*}
 \end{p}
 \begin{s}
-If above statment holds on all non-negative lebesgue measurable functions, then since $f = f^+ - f^-$ and $s = s^+ - s^-$,
-\begin{align*}
-0 \le \int_X|f-s|\ d\mu \le \int_X|f^+ - s^+| + |f^- - s^-|\ d\mu < 2\e
-\end{align*}
-WLOG, it suffices to show above statement where $f \ge 0$.\\
+First of all, let's show above statement holds on $f\ge0$ s.t. $f\in L^1(\mu)$.\\
 Thm 1.17 $\Rightarrow$ ${}^\exists$ simple $(s_n)_{n=1}^\infty :\ X \to [0,\infty)$ s.t. $s_n \nearrow f$. Then $s_n \in L^1(\mu)$.\\
 Then, we can see following holds:
 \begin{align*}
@@ -271,7 +268,13 @@ Then, we can see following holds:
 \end{cases}
 \end{align*}
 DCT $\Rightarrow$ $\int_X |f - s_n |\ d\mu \to 0$ as $n\to\infty$.\\
-$\therefore {}^\exists N\in\NN$ s.t. $\int_X |f-s_N|\ d\mu < \e$ and take $s=s_N$.
+$\therefore {}^\exists N\in\NN$ s.t. $\int_X |f-s_N|\ d\mu < \e/2$ and take $s=s_N$.\\
+Since $f = f^+ - f^-$, there exists simple functions $s^+$, $s^-$ s.t. $\int_X |f^+-s^+|\ d\mu < \e/2$ and $\int_X |f^--s^-|\ d\mu < \e/2$.\\
+Then for $s = s^+ - s^-$,
+\begin{align*}
+0 \le \int_X|f-s|\ d\mu \le \int_X|f^+ - s^+| + |f^- - s^-|\ d\mu < \e
+\end{align*}
+
 \end{s}
 \bigskip
 % problem 8
@@ -319,7 +322,7 @@ Prove that $\mu$ is a measure on $(X, \MM)$ and hence $(X, \MM, \mu)$ is a measu
 $\therefore (X,\MM)$ is a measurable space.\\ \\
 \v{(2)} Since $\mu(\varnothing)=0<\infty$, it suffices to show countable additivity of $\mu$.\\
 Let $A_1, A_2, \ldots \in \MM$ be disjoint sets.\\
-Since $|X|<\infty$ and $\MM\subseteq 2^X$, $|\MM|<\infty$ and ${}^\exists N$ s.t. $A_{N+1} = A_{N+2} = \cdots=\varnothing$. Then, when we show that $A_1, A_2\in\MM$ disjoint $\Rightarrow$ $\mu(A_1\cup A_2)=\mu(A_1)+\mu(A_2)$, it can be easily expanded to conclusion by induction.
+Since $|X|<\infty$ and $\MM\subseteq 2^X$, $|\MM|<\infty$ and ${}^\exists N$ s.t. $\bigcup_{n=1}^{\infty}A_n = \bigcup_{n=1}^{N}A_n$. Then, when we show that $A_1, A_2\in\MM$ disjoint $\Rightarrow$ $\mu(A_1\cup A_2)=\mu(A_1)+\mu(A_2)$, it can be easily expanded to conclusion by induction.
 \begin{align*}
 \mu(A_1 \cup A_2) = \sum_{i\in A_1\cup A_2} a_i = \sum_{i\in A_1} a_i + \sum_{i\in A_2} a_i = \mu(A_1) + \mu(A_2).
 \end{align*}
@@ -332,13 +335,13 @@ The completion of above measure space is,
 \begin{align*}
 \MM^* =\{E\seq X:\ {}^\exists A, B\in\MM\ \mathrm{s.t.}\ A\seq E \seq B,\ \mu(B\setminus A)=0\}
 \end{align*}
-Let's find largest $N\seq X$ s.t. $\mu(N)=0$.
+Let's find $N\seq X$ s.t. $\mu(N)=0$.
 \begin{align*}
 \mu(N) = \sum_{i\in N} a_i = 0\quad\Rightarrow\quad N=\varnothing\ \mathrm{or}\ a_i=0,\ {}^\forall i\in N
 \end{align*}
 $\therefore N\in 2^{\{1,2,3\}}$\\
-$\therefore \MM^* = \{N\cup E:\ E\in\MM,\ N\in 2^{\{1,2,3\}}$.\\
-Extend $\mu$ so that satisfies $\mu(N\cup E)=\mu(E)$.\\
+$\therefore \MM^* = \{N\cup E:\ E\in\MM,\ N\in 2^{\{1,2,3\}}\}$.\\
+Extend $\mu$ as $\mu(E)=\mu(E\setminus\{1,2,3\})$ for $E\in\MM^*$.\\
 Then, $(X, \MM^*, \mu)$ is a complete measure space.
 \end{s}
 \end{document}
