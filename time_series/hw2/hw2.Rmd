@@ -1,0 +1,100 @@
+---
+title: 
+  - 시계열 분석 및 응용
+subtitle:
+  - Assignment \#2 (6, 7, 8, 10, 12)
+author: 
+  - 서울대학교 통계학과 2017-11362 박건도
+date: "`r format(Sys.time(), '%Y년 %m월 %d일')`"
+header-includes:
+  - \usepackage[hangul]{kotex}
+output:
+  pdf_document:
+    fig_caption: yes
+    latex_engine: xelatex
+    df_print: kable
+mainfont: NanumBarunGothic
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = NA)
+```
+
+```{r libraries, message=FALSE, warning=FALSE, include=FALSE}
+library(forecast)
+set.seed(0)
+```
+
+# 6. ARMA(1,1)
+정상 시계열 $X_t = \phi X_{t-1} + \theta \epsilon_{t-1} + \epsilon_{t}$에서 $\phi=0.5, \theta=0.5$인 모형을 생각하자. 여기서 $\mu=0$으로 뒀다.
+```{r}
+X <- arima.sim(n=100, list(ar=c(0.5), ma=c(0.5)))
+plot(X)
+```
+
+$\hat\phi, \hat\theta$를 구하자.
+```{r}
+X.fit <- arima(X, order=c(1,0,1), include.mean=F)
+X.fit
+```
+$\hat\phi=0.5593, \hat\theta=0.4111$.
+
+$\hat X(101), \cdots, \hat X(110)$을 구하면 아래와 같다.
+```{r}
+X.predicted <- forecast(X.fit, h=10)
+X.predicted
+```
+
+# 7. AR(1)
+
+$X_t = 0.7X_{t-1} + \epsilon_t$.
+
+### (a) $\epsilon_t \sim iid\ N(0, 1)$.
+```{r}
+X <- arima.sim(list(ar=c(0.7)), n=100)
+X.fit_ML <- arima(X, order=c(1, 0, 0), include.mean=F, method="ML")
+X.fit_ML
+X.fit_CSS <- arima(X, order=c(1, 0, 0), include.mean=F, method="CSS")
+X.fit_CSS
+```
+
+### (b) $\epsilon_t \sim iid\ t(4)$.
+```{r}
+rt4 <- function(n) rt(n, 4)
+X <- arima.sim(list(ar=c(0.7)), n=100, rand.gen=rt4)
+X.fit_ML <- arima(X, order=c(1, 0, 0), include.mean=F, method="ML")
+X.fit_ML
+X.fit_CSS <- arima(X, order=c(1, 0, 0), include.mean=F, method="CSS")
+X.fit_CSS
+```
+
+# 8. AR(2)
+$X_t = 0.5X_{t-1} + 0.1X_{t-2}+\epsilon_t$
+```{r}
+X <- arima.sim(list(ar=c(0.5, 0.1)), n=100, rand.gen=rt4)
+plot(X)
+X.fit <- arima(X, order=c(2, 0, 0), include.mean=F)
+
+# 95% confidence interval
+confint(X.fit)
+```
+
+# 10. ARMA(1, 1)
+$X_t = 0.7X_{t-1} - 0.2\epsilon_{t-1} + \epsilon_t$.
+```{r}
+X <- arima.sim(list(ar=c(0.7), ma=c(-0.2)), n=500)
+acf(X)
+lines(0:20, c(1, 215/266*(0.7)^(1:20)), col='red')
+```
+red line이 ideal한 ACF이고, black line은 sampling을 통해 구한 ACF이다.
+
+# 12. MA(1)
+$X_t = 0.5\epsilon_{t-1} + \epsilon_t$.
+```{r}
+X <- arima.sim(list(ma=c(0.5)), n=300)
+plot(X)
+X.fit <- arima(X, order=c(0, 0, 1), include.mean=F)
+X.fit
+X.predicted <- forecast(X.fit, h=10)
+X.predicted
+```
