@@ -397,11 +397,12 @@ L을 사용한 경우, L[1,1]과 L[20,20]의 값이 같지만, S를 사용한 �
 ```{r}
 Smoothing_B_spline <- function(X, Y, lambda){
   intknot <- X[-c(1, length(X))]
-  G <- bs(X, knots=intknot)
+  G <- bs(X, knots=intknot, intercept=T)
   P <- ncol(G)
   rng <- range(X)
   dx <- (rng[2] - rng[1]) / 200
-  ddG <- dbs(seq(rng[1], rng[2], length=201), knots=intknot, derivs=2)
+  ddG <- dbs(seq(rng[1], rng[2], length=201),
+             knots=intknot, derivs=2, intercept=T)
   K <- diag(P)
   for (i in 1:P){
     for (j in 1:P){
@@ -416,7 +417,7 @@ Smoothing_B_spline <- function(X, Y, lambda){
 SS <- Smoothing_B_spline(X, Y, lambda = 0.1)
 beta <- SS$beta
 xx <- seq(0.1, 3, by=0.01)
-gg <- bs(xx, knots=X[-c(1, length(X))])
+gg <- bs(xx, knots=X[-c(1, length(X))], intercept=T)
 yy <- gg %*% beta
 plot(xx, yy, type="l")
 points(X, Y, col="red", pch=18)
