@@ -1,0 +1,178 @@
+---
+title: 
+  - 시계열 분석 및 응용
+subtitle:
+  - Assignment \#4 (7, 10, 11)
+author: 
+  - 서울대학교 통계학과 2017-11362 박건도
+date: "`r format(Sys.time(), '%Y년 %m월 %d일')`"
+header-includes:
+  - \usepackage[hangul]{kotex}
+output:
+  pdf_document:
+    fig_caption: yes
+    latex_engine: xelatex
+    df_print: kable
+mainfont: NanumBarunGothic
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = NA)
+```
+
+```{r libraries, message=FALSE, warning=FALSE, include=FALSE}
+library(forecast)
+library(tseries)
+library(car)
+set.seed(0)
+```
+
+# 7. AIC
+
+### (1) $X_t = 0.5X_{t-1} + \epsilon_t$,  $\epsilon_t\sim\ iid\ (0, \sigma^2)$
+```{r}
+X1 <- arima.sim(list(order=c(1, 0, 0), ar=0.5), n=100)
+fit.ar <- Arima(X1, order=c(1, 0, 0))
+fit.arma <- Arima(X1, order=c(1, 0, 1))
+fit.ar$aic
+fit.arma$aic
+```
+
+두 모형에서 AIC 값의 차이가 크지 않으므로, ARMA(1, 1) 모형은 과적합 되었고 AR(1) 모형은 잘 적합되었다고 볼 수 있다.
+
+### (2) $X_t = 0.5\epsilon_{t-1} + \epsilon_t$,  $\epsilon_t\sim\ iid\ (0, \sigma^2)$
+```{r}
+X2 <- arima.sim(list(order=c(0, 0, 1), ma=0.5), n=100)
+fit.ma <- Arima(X2, order=c(0, 0, 1))
+fit.arma <- Arima(X2, order=c(1, 0, 1))
+fit.ma$aic
+fit.arma$aic
+```
+
+두 모형에서의 AIC 값이 크지 않으므로, ARMA(1, 1) 모형은 과적합 되었고 MA(1) 모형은 잘 적합되었다고 볼 수 있다.
+
+# 10. ex_ch4_10.txt
+
+### (1) plot
+```{r}
+ex10 <- read.table("ex_ch4_10.txt", header=T)$data
+plot(ex10, type="l")
+acf(ex10)
+```
+
+시계열도를 그려봤을 때, 별다른 규칙이 없으므로 정상시계열이라 할 수 있다.
+또한 SACF를 그려봤을 때, 점점 감소하는 것으로 보아 AR 모형이라고 생각할 수 있다.
+
+### (2) unit root test
+```{r}
+adf.test(ex10)
+```
+
+p-value가 0.15이므로 귀무가설을 기각할 수 없고, 비정상시계열이 아닌 정상시계열이라 할 수 있다.
+
+### (3) adequate model
+```{r}
+pacf(ex10)
+```
+
+(1)의 SACF와 위의 SPACF를 보면, 점점 감소하는 SACF와 2 이상에서 작은 값을 가지는 SPACF를 관찰할 수 있다. 따라서 AR(1) 모형을 따를 것으로 추측할 수 있다.
+
+### (4) fit
+```{r}
+fit.ar <- Arima(ex10, order=c(1, 0, 0))
+fit.ar
+```
+
+AR(1) 모형으로 적합한 결과, $\phi=0.946,\ \mu=-25.1935$으로 적합되었다.
+
+```{r}
+res <- fit.ar$residuals
+par(mfrow=c(2,2))
+plot(res, type="l")
+hist(res)
+qqnorm(res)
+qqline(res, col="red", lwd=2)
+acf(res)
+```
+
+적합 시킨 결과에서 잔차를 분석해 보면, 정규성과 독립성을 만족함을 확인할 수 있다. 또한 잔차에 대해 SACF를 그려보면, 1 이상에서 작은 값을 가지므로 확실히 독립성을 만족한다고 할 수 있다.
+
+```{r}
+Box.test(res, type="Ljung-Box")
+durbinWatsonTest(as.vector(res))
+```
+
+Ljung-Box test와 Durbin-Watson test를 진행하면, 모형이 적절하고 오차항에 상관관계가 없다는 결론을 내릴 수 있다.
+
+```{r}
+jarque.bera.test(res)
+shapiro.test(res)
+```
+
+Jarque-Bera test와 Shapiro-Wilk test를 통해서도 정규성을 만족함을 보일 수 있다.
+
+```{r}
+Arima(ex10, order=c(1, 0, 1))
+Arima(ex10, order=c(2, 0, 0))
+```
+
+과적합 판단을 위해, AR(2)와 ARMA(1, 1) 모형에 대해서 적합을 시도해 보았다. 그 결과 계수들이 크게 변하지 않았고 새로 추가한 계수의 값이 0에 가까웠다. 또한 AIC 값 또한 비슷하므로 AR(1) 모형이 적절한 모형임을 알 수 있다.
+
+# 11. ex_ch4_11.txt
+
+### (1) plot
+```{r}
+ex11 <- read.table("ex_ch4_11.txt", header=T)$data
+plot(ex11, type="l")
+```
+
+시계열도를 그려본 결과, 증가하는 추세가 뚜렷하게 관찰되므로 정상시계열이 아니라고 생각할 수 있다.
+
+### (2) Diff
+```{r}
+ex11.diff <- diff(ex11)
+plot(ex11.diff, type="l")
+```
+1차 차분 후 시계열도를 그려본 결과, 정상성을 만족한다고 할 수 있다.
+
+### (3) SACF, SPACF
+```{r}
+acf(ex11.diff)
+pacf(ex11.diff)
+```
+
+SACF와 SPACF 모두 시차가 1이상에서 0에 가까운 값을 나타내고 있다. 다시말해, 시차 $(p-q)=0$ 이후부터 소멸하는 현상을 보이므로 ARIMA($p$, 1, $p$) 모형이라고 생각할 수 있다.
+
+### (4) fit
+```{r}
+for (p in 1:4){
+  print(Arima(ex11, order=c(p, 1, p), include.drift = T)$aic)
+}
+```
+$p=1, 2, 3, 4$에 대해 fitting 후 AIC 값을 비교해 본 결과, $p=2$에서 가장 적게 나왔다. 따라서 ARIMA(2, 1, 2) 모형이 적절하다고 생각할 수 있다.
+
+```{r}
+fit.arma <- Arima(ex11, order=c(2, 1, 2), include.drift = T)
+fit.arma
+res <- fit.arma$residuals
+par(mfrow=c(2,2))
+plot(res, type="l")
+hist(res)
+qqnorm(res)
+qqline(res, col="red", lwd=2)
+acf(res)
+
+Box.test(res, type="Ljung-Box") # Ljung-Box test
+durbinWatsonTest(as.vector(res)) # Durbin-Watson test
+jarque.bera.test(res) # Jarque-Bera test
+shapiro.test(res) # Shapiro-Wilk test
+```
+잔차의 plot과 함께 여러 테스트를 진행한 결과, 정규성 및 독립성을 만족한다고 볼 수 있다.
+
+```{r}
+Arima(ex11, order=c(3, 1, 2), include.drift = T)
+Arima(ex11, order=c(2, 1, 3), include.drift = T)
+```
+
+과적합 판단을 위해 ARIMA(2, 1, 3), ARIMA(3, 1, 2)에 대해 적합을 추가로 진행한 후, 비교해 보았다.
+추가로 생긴 계수들이 0에 가깝고, 기존의 계수는 ARIMA(2, 1, 2)의 계수와 비슷하므로 주어진 데이터 `ex_ch4_11.txt` 데이터는 ARIMA(2, 1, 2) 모형으로 잘 적합되었다고 할 수 있다.
