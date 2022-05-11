@@ -1,0 +1,343 @@
+% ***********************************************************
+% ******************* PHYSICS HEADER ************************
+% ***********************************************************
+% Version 2
+\documentclass[12pt]{article}
+\usepackage{kotex}
+\usepackage{amsmath} % AMS Math Package
+\usepackage{amsthm} % Theorem Formatting
+\usepackage{amssymb}    % Math symbols such as \mathbb
+\usepackage{graphicx} % Allows for eps images
+\usepackage[dvips,letterpaper,margin=1in,bottom=0.7in]{geometry}
+\usepackage{tensor}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+ % Sets margins and page size
+\usepackage{amsmath}
+
+\renewcommand{\labelenumi}{(\alph{enumi})} % Use letters for enumerate
+% \DeclareMathOperator{\Sample}{Sample}
+\let\vaccent=\v % rename builtin command \v{} to \vaccent{}
+\usepackage{enumerate}
+\renewcommand{\v}[1]{\ensuremath{\mathbf{#1}}} % for vectors
+\newcommand{\norm}[1]{\lVert #1 \rVert} % norm
+\newcommand{\abs}[1]{\left| #1 \right|} % for absolute value
+\let\underdot=\d % rename builtin command \d{} to \underdot{}
+\renewcommand{\d}[2]{\frac{d #1}{d #2}} % for derivatives
+\newcommand{\dd}[2]{\frac{d^2 #1}{d #2^2}} % for double derivatives
+\newcommand{\grad}[1]{\gv{\nabla} #1} % for gradient
+\let\divsymb=\div % rename builtin command \div to \divsymb
+\let\baraccent=\= % rename builtin command \= to \baraccent
+\DeclareRobustCommand{\rchi}{{\mathpalette\irchi\relax}}
+\newcommand{\irchi}[2]{\raisebox{\depth}{$#1\chi$}} % inner command, used by \rchi
+
+\providecommand{\wave}[1]{\v{\tilde{#1}}}
+\providecommand{\fr}{\frac}
+\providecommand{\RR}{\mathbb{R}}
+\providecommand{\NN}{\mathbb{N}}
+\providecommand{\MM}{\mathfrak{M}}
+\providecommand{\LL}{\Lambda}
+\providecommand{\seq}{\subseteq}
+\providecommand{\e}{\varepsilon}
+\providecommand{\FA}{{}^\forall}
+\providecommand{\TE}{{}^\exists}
+\providecommand{\then}{\ \Rightarrow\ }
+
+\newtheorem{prop}{Proposition}
+\newtheorem{thm}{Theorem}[section]
+\newtheorem{axiom}{Axiom}[section]
+\newtheorem{p}{Problem}%[section]
+\usepackage{cancel}
+\newtheorem*{lem}{Lemma}
+\theoremstyle{definition}
+\newtheorem*{dfn}{Definition}
+ \newenvironment{s}{%\small%
+        \begin{trivlist} \item \textbf{Solution}. }{%
+            \hspace*{\fill} $\blacksquare$\end{trivlist}}%
+% ***********************************************************
+% ********************** END HEADER *************************
+% ***********************************************************
+
+\begin{document}
+
+{\noindent\Huge\bf  \\[0.5\baselineskip] {\fontfamily{cmr}\selectfont  Assignment \#5}         }\\[2\baselineskip] % Title
+{ {\bf \fontfamily{cmr}\selectfont real analysis}\\ {\textit{\fontfamily{cmr}\selectfont     May 11, 2022}}}~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~    {\large \textsc{2017-11362 통계학과 박건도}
+\\[1.4\baselineskip] 
+
+% problem 1
+\begin{p}
+Let $X$ be a topological space and $K \subset X$ be a compact set, let $C(K)$ be the collection of real-valued continuous functions on $K$ (which is a vector space associated with usual addition and scalar multiplication of functions). The sup-norm on $C(K)$ is defined by,
+\begin{align*}
+\norm{f}_{\sup} = \sup_{x\in K}\abs{f(x)}\quad \mathrm{for}\ f \in C(K).
+\end{align*}
+Prove that the vector space $C(K)$ equipped with this norm is a Banach space.
+\end{p}
+\begin{s}
+First of all, let's show that $C(K)$ is NLS.
+\begin{enumerate}
+\item[(i)] $\norm{f+g} \le \norm{f} + \norm{g}$\\
+$\abs{f(x)+g(x)} \le \abs{f(x)} + \abs{g(x)},\ \FA x \in K.$
+\begin{align*}
+\norm{f+g} &= \sup_{x\in K}\abs{f(x)+g(x)}\\
+&\le \sup_{x\in K}\abs{f(x)} + \sup_{x\in K}\abs{g(x)}\\
+&= \norm{f} + \norm{g}
+\end{align*}
+\item[(ii)] $\norm{\alpha f} = \abs{\alpha}\norm{f},\ \FA \alpha\in\RR$\\
+$\abs{\alpha f(x)} = \abs{\alpha}\abs{f(x)},\ \FA x\in K$.
+\begin{align*}
+\norm{\alpha f}&=\sup_{x\in K} \abs{\alpha f(x)}\\
+&= \abs{\alpha}\sup_{x\in K}\abs{f(x)}\\
+&= \abs{\alpha} \norm{f}
+\end{align*}
+\item[(iii)] $\norm{f} \ge 0$, $\norm{f}=0\ \iff\ f=0$.\\
+$\norm{f}\ge 0$ is trivial.
+\begin{align*}
+\norm{f}=0 &\iff \sup_{x\in K}\abs{f(x)}=0\\
+&\iff 0\le\abs{f(x)}<\e,\ \FA x\in K,\ \FA\e>0\\
+&\iff f=0
+\end{align*}
+\end{enumerate}
+Then, we only have to show that $C(K)$ is complete.\\
+Let $(f_n)_{n=1}^\infty\in C(K)$ is Cauchy sequence.\\
+For $\e>0$, $\TE N$ s.t. $m, n>N \then \norm{f_m - f_n} < \e$.\\ $m,n>N\then\abs{f_m(x)-f_n(x)} \le \norm{f_m-f_n}<\e,\ \FA x\in K$.\\
+$\therefore x\in K \then \TE f(x)$ s.t. $\lim\limits_{n\to\infty} f_n(x)=f(x)$.\\
+We know that $m,n>N\then\abs{f_m(x)-f_n(x)}<\e,\ \FA x\in K$.\\
+As $m\to\infty$, it becomes $n>N\then\abs{f(x)-f_n(x)}\le\e<2\e,\ \FA x\in K$.\\
+Since $f_n$ is continuous,\\
+$\TE$ open $U\subset K$ s.t. $x, y\in U\then \abs{f_n(x) - f_n(y)}<\e$.\\
+Then for $x, y\in U$,
+\begin{align*}
+\abs{f(x)-f(y)} &\le \abs{f(x)-f_n(x)}+\abs{f_n(x)-f_n(y)}+\abs{f_n(y)-f(y)}\\
+&< 2\e + \e + 2\e = 5\e.
+\end{align*}
+$\therefore f$ is continuous.
+\end{s}
+\bigskip
+%problem 2
+\begin{p}
+Let $p\in[1,\infty)$ and let $\LL$ be a linear functional on $L^p(I)$ defined by
+\begin{align*}
+\Lambda(f) = \int_0^1 e^{2x}f(x)dx\quad \mathrm{for}\ f\in L^p(I) .
+\end{align*}
+\begin{enumerate}
+\item[(1)] Prove that $\LL$ is a bounded and compute $\norm{\LL}$.
+\item[(2)] Find all $f\in L^p(I)$ with $\norm{\LL(f)} = \norm{\LL}\norm{f}$.
+\end{enumerate}
+\end{p}
+\begin{s}
+\begin{enumerate}
+\item[(1)] $\LL$ is bounded.\\
+By Hölder's Inequality,
+\begin{align*}
+\int_{I}\abs{f}dm = \int_{I}\abs{f}\cdot1\ dm\le\left[\int_{I}\abs{f}^p dm\right]^{1/p}\left[\int_{I}1\ dm\right]^{1/q}=\norm{f}_p < \infty.
+\end{align*}
+\begin{align}
+\abs{\LL f} = \abs{\int_{I}e^{2x}f(x)dx}&\le e^2\abs{\int_{I}f(x) dx}\label{eq:1}\\
+&\le e^2 \int_{I}\abs{f}dm\nonumber\\
+&\le e^2 \norm{f}_p\nonumber
+\end{align}
+\begin{align*}
+\therefore\norm{\LL} = \sup\left\{\frac{\abs{\LL f}}{\norm{f}_p} : f \not= 0\right\}\le e^2 < \infty.
+\end{align*}
+Let's compute $\norm{\LL}$.
+\begin{enumerate}
+\item[(i)] $p=1$.\\
+Consider $(f_n)_{n=1}^\infty$ s.t. $f_n = \rchi_{[1-\frac{1}{n},1]}$, $n=1,\ 2,\ \cdots$.\\
+Since $\norm{f_n}_1=\frac{1}{n}<\infty$, $(f_n)_{n=1}^\infty\in L^1(I)$.
+\begin{align*}
+\abs{\LL f_n} &= \int_{1-\frac{1}{n}}^1 e^{2x}dx = \frac{e^2}{2}\left( 1 - e^{-\fr{2}{n}}\right),\\
+\norm{\LL} &\ge \frac{\abs{\LL f_n}}{\norm{f_n}_1} = \frac{e^2}{2} n \left( 1 - e^{-\fr{2}{n}}\right).
+\end{align*}
+Take $\lim\limits_{n\to\infty}$ both sides. Then,
+\begin{align*}
+\norm{\LL} \ge \frac{e^2}{2} \lim_{n\to\infty} n\left(1-e^{-\fr{2}{n}}\right) &= \frac{e^2}{2} \lim_{h\to 0+} \frac{1-e^{-2h}}{h}\\
+& = \frac{e^2}{2} \lim_{h\to0+} \frac{2e^{-2h}}{1}\\&=e^2.
+\end{align*}
+$\therefore \norm{\LL}=e^2$.
+\item[(ii)] $p > 1$.\\
+Assume $f \ge 0$.\\
+By Hölder's Inequality, for $q$ s.t. $\frac{1}{p} + \fr{1}{q} = 1$,
+\begin{align*}
+\abs{\LL f} = \int_{I} e^{2x} f(x) dx& \le \left[\int_{I}\abs{f(x)}^p  dx \right]^{1/p} \left[\int_{I} e^{2qx} dx\right]^{1/q}\\
+&= \norm{f}_p \left( \frac{1}{2q}\left( e^{2q}-1\right)\right)^{1/q}.
+\end{align*}
+\begin{align*}
+\therefore \norm{\LL} = \sup_{f\neq0}\frac{\abs{\LL f}}{\norm{f}_p} = \left( \frac{1}{2q}\left( e^{2q}-1\right)\right)^{1/q}.
+\end{align*}
+($\because$ The equality holds where $f(x)=ce^{2\fr{q}{p}x}$ a.e. for some $c$ and that $f\in L^p(I)$.)
+\end{enumerate}
+\item[(2)] For $f=0$ a.e., the equality holds.\\
+If $p>1$, $f(x)=ce^{2\fr{q}{p}x}$ a.e. for $c\in\RR$. ($\because$ Hölder's Inequality)\\
+If $p=1$,  $f=0$ a.e. ($\because$ \eqref{eq:1} holds only if $f=0$ a.e.)
+\end{enumerate}
+\end{s}
+\bigskip
+
+%problem 3
+\begin{p}
+Let $\LL$ be a linear functional on $C(I)$ (cf. Problem 1) defined by
+\begin{align*}
+\LL (f) = \int_0^1 xf(x)dx\quad \mathrm{for}\ f\in C(I) .
+\end{align*}
+\begin{enumerate}
+\item[(1)] Prove that $\LL$ is a bounded and compute $\norm{\LL}$.
+\item[(2)] Find all $f\in C(I)$ with $\norm{\LL(f)} = \norm{\LL}\norm{f}$.
+\item[(3)] Define a subspace $X$ of $C(I)$ as
+\begin{align*}
+X = \{ f\in C(I)\ :\ f(1)=0\}
+\end{align*}
+Denote by $\LL_X = \LL\mid_X$ the restriction of $\LL$ to $X$. Prove that $\norm{\LL_X}=\norm{\LL}$ and find all $f\in X$ such that $\norm{\LL_X(f)} = \norm{\LL_X}\norm{f}$. 
+\end{enumerate}
+\end{p}
+\begin{s}
+\begin{enumerate}
+\item[(1)] $\norm{\LL} = \sup\{\abs{\LL f}:f\in C(I), \norm{f}_{\sup} = 1\}$.\\
+For $f\in C(I)$ s.t. $\norm{f}_{\sup} = 1$,
+\begin{align*}
+\abs{\LL f} = \abs{\int_{I} xf(x)dx} &\le \int_{I}\abs{xf(x)}dx\\
+&=\int_{I}\abs{x}\abs{f(x)}dx\\
+&\le \norm{f}_{\sup}\int_{I}\abs{x}dx = \fr{1}{2}
+\end{align*}
+For $f=1$, $\norm{f}_{\sup}=1$ and $\abs{\LL f}=\int_{I}xdx=\frac{1}{2}$.\\
+$\therefore \norm{\LL}=\frac{1}{2}$.
+\item[(2)] Claim: $f=c \iff \abs{\int_{I}xf(x)dx}=\fr{1}{2}\norm{f}_{\sup}\ $ for $c\in\RR$.\\
+($\Rightarrow$) is trivial.\\
+($\Leftarrow$) Assume that $\abs{f(x_0)}\neq \norm{f}_{\sup}$ for some $x_0 \in [0,1]$.\\
+WLOG, $f \ge 0$. (Consider $f$ as $\abs{f}$.)\\
+For $\e=\norm{f}_{\sup} - f(x_0)>0$, $\TE \delta>0$ s.t. 
+\begin{align*}
+\abs{x-x_0}<\delta\then\abs{f(x)-f(x_0)}<\fr{\e}{2}=\fr{1}{2}\left(\norm{f}_{\sup}-f(x_0)\right).
+\end{align*}
+Then, for $x\in(x_0-\delta, x_0+\delta)$,
+\begin{align*}
+f(x) < f(x_0)+\frac{\e}{2}=\fr{1}{2}\left(\norm{f}_{\sup}+f(x_0)\right) = \norm{f}_{\sup} - \frac{\e}{2}.
+\end{align*}
+Let $B = (x_0-\delta, x_0+\delta) \cap [0, 1]$, and $m(B) > 0$. Then,
+\begin{align*}
+\abs{\int_{I}xf(x)dx} = \int_{I}xf(x)dx&=\int_B xf(x)dx + \int_{B^c}xf(x)dx\\
+&\le \int_B x(\norm{f}_{\sup}-\fr{\e}{2})dx + \int_{B^c}x\norm{f}_{\sup}dx\\
+&=\norm{f}_{\sup} \int_{I} x dx - \fr{\e}{2}\int_{B}xdx\\
+&<\fr{1}{2}\norm{f}_{\sup}.
+\end{align*}
+\item[(3)] Consider $(f_n)_{n=1}^\infty$ defined by
+\begin{align*}
+f_n(x)=
+\begin{cases}
+1&, 0\le x < 1-\frac{1}{n}\\-n(x-1)&, 1-\fr{1}{n}\le x \le 1
+\end{cases}.
+\end{align*}
+Then $f_n\in X$ and $\norm{f_n}_{\sup}=1$, $\FA n\in\NN$.
+\begin{align*}
+\abs{\LL_Xf_n}=\int_Ixf_n(x)dx&=\int_0^{1-1/n}xdx + \int_{1-1/n}^1 -nx(x-1)dx\\
+&=\frac{1}{2}\left(1-\fr{1}{n}\right)^2 + n\left[ \fr{1}{2}x^2 - \fr{1}{3}x^3\right]_{1-1/n}^1\\
+&=\frac{1}{2}\left(1-\fr{1}{n}\right)^2 + \fr{1}{2n} - \fr{1}{3n^2}.
+\end{align*}
+$\therefore\norm{\LL_X} \ge \lim\limits_{n\to\infty}\abs{\LL_Xf_n}=\frac{1}{2}$.\\
+From the \v{Solution} of 3-(1), $\norm{\LL_X} \le \frac{1}{2}$. ($\because X \le C(I)$.)\\
+$\therefore \norm{\LL_X} = \frac{1}{2} = \norm{\LL}$.\\
+From the \v{Solution} of 3-(2), only $f=0$ satisfies $\norm{\LL_X(f)} = \norm{\LL_X}\norm{f}$.
+\end{enumerate}
+\end{s}
+\bigskip
+
+%problem 4
+\begin{p}
+For $n\in\NN$ and $1\le p < \infty$, let $X_n\subset L^p(I)$ be a collection of polynomials of degree $\le n$ and let $X = \cup_{n=1}^\infty X_n$.
+\begin{enumerate}
+\item[(1)] For $n\in\NN$, is there a bounded linear functional $\LL$ on $L^p(I)$ such that $\LL(f) = f'(0)$ for all $f\in X_n$?
+\item[(2)] Is there a bounded linear functional $\LL$ on $L^p(I)$ such that $\LL(f)=f'(0)$ for all $f\in X$?
+\end{enumerate}
+\end{p}
+\begin{s}
+\begin{enumerate}
+\item[(1)] Consider $\LL_n:X_n\to\RR$ s.t. $\LL_n(f)=f'(0)$ for all $f\in X_n$.\\
+$\LL_n$ is a BLF $\iff$ $\LL_n$ is continuous at $0\in X_n$.\\
+Let $(f_i)_{i=1}^\infty\in X_n$ s.t. $f_i\to 0$ in $L^p$. Then $\lim\limits_{i\to\infty}\int_{I}\abs{f_i}^p dm=0$.\\
+$\int_I\abs{f_i}dm \le \int_I\abs{f_i}^p dm\to0\then\int_I\abs{f_i}dm\to0$.\\
+Since $f_i\in X_n$, all coefficients of $f_i$ go to $0$ as $i\to\infty$.\\
+$\therefore \abs{\LL_n f_i}\to0$, i.e., .$\LL_n$ is continuous at 0.\\
+$\therefore \LL_n$ is a BLF.\\
+By Hahn-Banach Theorem, $\TE$ extension $\LL:L^p(I)\to\RR$ of $\LL_n$ s.t. $\LL$ is a BLF. (It is obvious that $X_n\le L^p(I)$.)
+\item[(2)] Consider $(f_n)_{n=1}^\infty$ s.t. $f_n(x) = (1-x)^n\in X_n\subseteq X$.\\
+$\int_{I}\abs{f_n(x)}^pdx = \fr{1}{np+1} < \infty$.\\
+For any linear functional $\LL$ s.t. $\LL(f)=f'(0)$,
+\begin{align*}
+\abs{\LL f_n} &= \abs{\left.-n(1-x)^{n-1}\right\vert_{x=0}}=n\to\infty,\\
+\fr{\abs{\LL f_n}}{\norm{f}_p}&=n(np+1)\to\infty.
+\end{align*}
+$\therefore \LL$ is not bounded.
+\end{enumerate}
+\end{s}
+\bigskip
+
+%problem 5
+\begin{p}
+For $k\in\NN$, denote by $C^k(I)$ the space of real-valued functions on $I$ possessing continuous derivatives up to order $k$ on $I$, including one-sided derivative at the end points 0 and 1. Define, for $p\in[1,\infty)$,
+\begin{align*}
+\norm{f} = \sum_{i=0}^k \norm{f^{(i)}}_{L^p([0,1])}\quad \mathrm{for}\ f\in C^k(I)
+\end{align*}
+where $f^{(i)}$ denotes $i$th derivative of $f$.
+\begin{enumerate}
+\item[(1)] Prove that $\norm{\cdot}$ is a norm on $C^k(I)$.
+\item[(2)] Prove that the space $C^k(I)$ equipped with the norm $\norm{\cdot}$ is not a Banach space. (The completion of this space is called a Sobolev space which is a central Banach space in the study of PDEs).
+\end{enumerate}
+\end{p}
+\begin{s}
+\begin{enumerate}
+\item[(1)] Let's show that $\norm{\cdot}$ is a norm.
+\begin{enumerate}
+\item[(i)] $\norm{f+g} \le\norm{f} +\norm{g}$
+\begin{align*}
+\norm{f+g} &= \sum_{i=0}^k\norm{(f+g)^{(i)}}_p =\sum_{i=0}^k \norm{f^{(i)}+g^{(i)}}_p\\
+&\le\sum_{i=0}^k\norm{f^{(i)}}_p+\norm{g^{(i)}}_p=\norm{f}+\norm{g}.
+\end{align*}
+\item[(ii)] $\norm{\alpha f} = \abs{\alpha}\norm{f}$.
+\begin{align*}
+\norm{\alpha f} = \sum_{i=0}^k \norm{(\alpha f)^{(i)}}_p = \sum_{i=0}^k\abs{\alpha}\norm{f^{(i)}}_p=\abs{\alpha}\norm{f}.
+\end{align*}
+\item[(iii)] $\norm{f}\ge0$, $\norm{f}=0\iff f=0$.
+\begin{align*}
+\norm{f}&=\sum_{i=0}^k\norm{f^{(i)}}_p \ge 0
+\end{align*}
+\begin{align*}
+\norm{f}=0 &\then \sum_{i=0}^k\norm{f^{(i)}}_p=0\\
+&\then \norm{f}_p=0\\
+&\then f=0.
+\end{align*}
+Opposite side of iff condition is trivial.
+\end{enumerate}
+\item[(2)] Consider $(f_n)_{n=1}^\infty\in C^k(I)$ s.t. $f_n(x) = \left(\left(x-\fr{1}{2}\right)^2+\fr{1}{n}\right)^{k/2}$.\\
+Then, $f_n\to f$ where $f(x) = \abs{x-\fr{1}{2}}^k$, which is not contained at $C^k(I)$.\\
+For $i=0,1,\cdots,k$,\\
+$f_n^{(i)}\to f^{(i)}$ and $f_n^{(i)} \ge f_{n+1}^{(i)}$, which lead to $f_n^{(i)}$ converges to $f^{(i)}$ uniformly. ($\because f_n^{(i)}$ is continuous, Thm 7.13 of PMA.)\\
+$\therefore f_n^{(i)}$ is uniformly Cauchy.\\
+$\therefore f_n$ is Cauchy with the norm $\norm{\cdot}$.\\
+Thus, $f_n$ is Cauchy sequence in $C^k(I)$ but $f=\lim f_n$ is not the element in $C^k(I)$, which means that $C^k(I)$ is not a Banach Space.
+\end{enumerate}
+\end{s}
+\bigskip
+
+%problem 6
+\begin{p}
+Let $X$ be a Banach space and let $(x_n)_{n=1}^\infty$ be a sequence in $X$ such that, for some $x\in X$,
+\begin{align*}
+\lim_{n\to\infty} \mathcal{\ell}(x_n) = \ell(x)\ \mathrm{for\ all\ bounded\ linear\ functional}\ \ell:X\to\RR.
+\end{align*}
+Prove that
+\begin{align*}
+\norm{x} \le \liminf_{n\to\infty}\norm{x_n}.
+\end{align*}
+\end{p}
+\begin{s}
+It is trivial for $x=0$.\\
+For  $x\in X\setminus\{0\}$, by \v{Thm\ 5.20},\\
+$\TE$ a bounded linear functional $\ell_x:X\to\RR$ s.t. $\ell_x(x)=\norm{x}$ and $\norm{\ell_x}=1$.\\
+Then, with the fact that $\abs{\ell_x(x_n)}\le\norm{\ell_x}\norm{x_n}$,
+\begin{align*}
+\norm{x} = \abs{\ell_x(x)} &= \lim_{n\to\infty}\abs{\ell_x(x_n)}\\
+&= \liminf_{n\to\infty} \abs{\ell_x(x_n)}\\
+&\le \liminf_{n\to\infty}\norm{\ell_x}\norm{x_n}\\
+&=\liminf_{n\to\infty}\norm{x_n}.
+\end{align*}
+\end{s}
+\end{document}
