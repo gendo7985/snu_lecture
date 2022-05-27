@@ -1,0 +1,114 @@
+---
+title: 
+  - 시계열 분석 및 응용
+subtitle:
+  - Assignment \#6 (11, 14)
+author: 
+  - 서울대학교 통계학과 2017-11362 박건도
+date: "`r format(Sys.time(), '%Y년 %m월 %d일')`"
+header-includes:
+  - \usepackage[hangul]{kotex}
+output:
+  pdf_document:
+    fig_caption: yes
+    latex_engine: xelatex
+    df_print: kable
+mainfont: NanumBarunGothic
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = NA)
+```
+
+```{r libraries, message=FALSE, warning=FALSE, include=FALSE}
+library(fGarch)
+set.seed(0)
+```
+
+# 11. GARCH(1,1)
+
+```{r}
+plot_garch <- function(omega, alpha, beta, cond){
+  par(mfrow=c(4, 1), mai=c(0.3,0.5,0.3,0.3))
+  for (b in beta){
+    g_spec <- garchSpec(model=list(omega=omega, alpha=alpha, beta=b),
+                        cond.dist=cond)
+    data <- garchSim(spec=g_spec, n=500)
+    plot(data, main=paste0("beta = ", b))
+  }
+}
+```
+
+\newpage
+
+```{r, fig.height=8}
+# omega = 1e-6, alpha = 0.1
+plot_garch(1e-6, 0.1, c(0.1, 0.3, 0.5, 0.85), cond="norm")
+# omega = 10, alpha = 0.1
+plot_garch(10, 0.1, c(0.1, 0.3, 0.5, 0.85), cond="norm")
+# omega = 1e-6, alpha = 0.4
+plot_garch(10, 0.1, c(0.1, 0.2, 0.4, 0.55), cond="norm")
+# omega = 1e-6, alpha = 0.7
+plot_garch(10, 0.1, c(0.05, 0.1, 0.15, 0.25), cond="norm")
+# omega = 1e-6, alpha = 0.1
+plot_garch(1e-6, 0.1, c(0.1, 0.3, 0.5, 0.85), cond="std")
+# omega = 10, alpha = 0.1
+plot_garch(10, 0.1, c(0.1, 0.3, 0.5, 0.85), cond="std")
+# omega = 1e-6, alpha = 0.4
+plot_garch(10, 0.1, c(0.1, 0.2, 0.4, 0.55), cond="std")
+# omega = 1e-6, alpha = 0.7
+plot_garch(10, 0.1, c(0.05, 0.1, 0.15, 0.25), cond="std")
+```
+\newpage
+
+- $\xi_t$가 정규분포를 따를 때 보다 $t$분포를 따를 때 변동성이 더 크게 나타났다.
+- $\omega$, 즉 $\alpha_0$이 크면 전체적인 변동 또한 커졌다.
+- $\alpha + \beta$가 1에 가까워 질수록 분산이 크게 나타나는 형태를 보인다.
+- $\alpha$가 커질수록 변동성 또한 늘어난다.
+
+# 14. ex_ch6_14
+
+### (1) GARCH(1,1) fitting
+```{r, warning=F}
+ex14_dat <- read.table('ex_ch6_14.txt', header=T)
+ex14 <- ex14_dat$value
+fit_garch <- garchFit(formula = ~garch(1, 1), data=ex14, trace=F)
+summary(fit_garch)
+```
+
+### (2) Change-point test
+```{r}
+### change point detection
+# autocovariance function
+cov_calc <- function(dat, h) {
+  n <- length(dat)
+  xmean <- mean(dat)
+  x1 <- dat[1:(n-h)] - xmean
+  x2 <- dat[(h+1):n] - xmean
+  return(sum(x1 * x2/n))
+}
+
+# long run variance
+var_calc <- function(dat, max_h = 2^0.5*(log10(length(dat)))^2 ) {
+  n <- length(dat)
+  sd2_hat <- cov_calc(dat, 0)
+  for(i in 1:max_h) {
+    sd2_hat <- sd2_hat + 2*(1-i/n)*(cov_calc(dat, i)) # Bartlett kernel
+  }
+  return(sd2_hat)
+}
+
+
+CUSUM_calc <- function(dat) {
+  ## return : maximum cusum test statistics and change point
+  n <- length(dat)
+  cusum <- abs((cumsum(dat) - (1:n)/n*sum(dat) ) / ( sqrt(n) * sqrt(var_calc(dat))))
+  argmax <- which.max(cusum)
+  if(max(cusum)>1.358) return(list("CUSUM_statistics" = max(cusum), "change_point"=argmax))
+  else return(print("no change"))
+}
+
+CUSUM_calc(ex14)
+```
+
+유의수준 5%에서 평균의 변화가 없다는 귀무가설을 기각하고, 그 결론으로 change_point = 1051에서 평균의 변화가 있다는 결론을 내릴 수 있다. 즉, `r ex14_dat$date[1051]`에서 평균이 변한다고 할 수 있다.
